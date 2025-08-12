@@ -6,7 +6,7 @@
      * @dev copied from https://github.com/OpenZeppelin/openzeppelin-contracts
      */
     interface IERC20 {
-        
+
     /**
     * @dev Returns the name of the token.
     * Selector: 06fdde03
@@ -24,7 +24,7 @@
     * Selector: 313ce567
     */
     function decimals() external view returns (uint8);
-    
+
     /**
      * @dev Total number of tokens in existence
      * Selector: 18160ddd

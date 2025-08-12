@@ -19,16 +19,17 @@
 //! The Local Network EVM precompiles. This can be compiled with ``#[no_std]`, ready for Wasm.
 
 use crate::{RuntimeCall, UnifiedAccounts};
-use uomi_primitives::precompiles::DispatchFilterValidate;
 use frame_support::traits::ConstU32;
 use frame_support::{parameter_types, traits::Contains};
 use pallet_evm_precompile_assets_erc20::Erc20AssetsPrecompileSet;
 use pallet_evm_precompile_blake2::Blake2F;
 use pallet_evm_precompile_bn128::{Bn128Add, Bn128Mul, Bn128Pairing};
+use uomi_primitives::precompiles::DispatchFilterValidate;
 
 use pallet_evm_precompile_dispatch::Dispatch;
 use pallet_evm_precompile_dispatch_lockdrop::DispatchLockdrop;
 use pallet_evm_precompile_ed25519::Ed25519Verify;
+use pallet_evm_precompile_ipfs::IpfsPrecompile;
 use pallet_evm_precompile_modexp::Modexp;
 use pallet_evm_precompile_sha3fips::Sha3FIPS256;
 use pallet_evm_precompile_simple::{ECRecover, ECRecoverPublicKey, Identity, Ripemd160, Sha256};
@@ -36,7 +37,6 @@ use pallet_evm_precompile_sr25519::Sr25519Precompile;
 use pallet_evm_precompile_substrate_ecdsa::SubstrateEcdsaPrecompile;
 use pallet_evm_precompile_unified_accounts::UnifiedAccountsPrecompile;
 use pallet_evm_precompile_uomi_engine::UomiEnginePrecompile;
-use pallet_evm_precompile_ipfs::IpfsPrecompile;
 use precompile_utils::precompile_set::*;
 use sp_std::fmt::Debug;
 
@@ -137,15 +137,11 @@ pub type LocalPrecompilesSetAt<R> = (
         (),
     >,
     PrecompileAt<
-    AddressU64<1970236777>,
-    UomiEnginePrecompile<R>,
-    (CallableByContract, CallableByPrecompile),
+        AddressU64<1970236777>,
+        UomiEnginePrecompile<R>,
+        (CallableByContract, CallableByPrecompile),
     >,
-    PrecompileAt<
-    AddressU64<257>,
-    IpfsPrecompile<R>,
-    (CallableByContract, CallableByPrecompile),
-    >,
+    PrecompileAt<AddressU64<257>, IpfsPrecompile<R>, (CallableByContract, CallableByPrecompile)>,
 );
 
 pub type LocalPrecompiles<R> = PrecompileSetBuilder<

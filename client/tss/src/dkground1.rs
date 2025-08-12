@@ -8,8 +8,13 @@ pub fn generate_round1_secret_package(
     n: u16,
     participant_identifier: Identifier,
     _session_id: SessionId,
-) -> Result<(frost_ed25519::keys::dkg::round1::Package, frost_ed25519::keys::dkg::round1::SecretPackage), frost::Error> {
-
+) -> Result<
+    (
+        frost_ed25519::keys::dkg::round1::Package,
+        frost_ed25519::keys::dkg::round1::SecretPackage,
+    ),
+    frost::Error,
+> {
     // TODO: implement semaphore here
 
     let mut rng = thread_rng();
@@ -18,4 +23,3 @@ pub fn generate_round1_secret_package(
 
     Ok((round1_package, round1_secret_package))
 }
-

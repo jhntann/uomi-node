@@ -6,7 +6,7 @@ pragma solidity ^0.8.0;
 interface ISubstrateEcdsa {
     /**
      * @dev Verify signed message using Substrate version of ECDSA crypto.
-     * @return A boolean confirming whether the public key is signer for the message. 
+     * @return A boolean confirming whether the public key is signer for the message.
      */
     function verify(
         bytes32 public_key,

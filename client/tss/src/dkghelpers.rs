@@ -69,16 +69,36 @@ fn format_filename(
                 format!("{}/round2", base_name)
             }
         }
-        StorageType::Key => format!("{}/frost/keys/{}", base_name, sha256_hex(&identifier.unwrap())),
-        StorageType::PubKey => format!("{}/frost/pubkeys/{}", base_name, sha256_hex(&identifier.unwrap())),
+        StorageType::Key => format!(
+            "{}/frost/keys/{}",
+            base_name,
+            sha256_hex(&identifier.unwrap())
+        ),
+        StorageType::PubKey => format!(
+            "{}/frost/pubkeys/{}",
+            base_name,
+            sha256_hex(&identifier.unwrap())
+        ),
         StorageType::SigningCommitments => format!("{}/signing/commitments", base_name),
         StorageType::SigningNonces => format!("{}/signing/nonces", base_name),
         StorageType::SignatureShare => format!("{}/signing/share", base_name),
         StorageType::SigningPackage => format!("{}/signing/package", base_name),
 
-        StorageType::EcdsaKeys => format!("{}/ecdsa/keys/{}", base_name, sha256_hex(&identifier.unwrap())),
-        StorageType::EcdsaOfflineOutput => format!("{}/ecdsa/offline/{}", base_name, sha256_hex(&identifier.unwrap())),
-        StorageType::EcdsaOnlineOutput => format!("{}/ecdsa/online/{}", base_name, sha256_hex(&identifier.unwrap())),
+        StorageType::EcdsaKeys => format!(
+            "{}/ecdsa/keys/{}",
+            base_name,
+            sha256_hex(&identifier.unwrap())
+        ),
+        StorageType::EcdsaOfflineOutput => format!(
+            "{}/ecdsa/offline/{}",
+            base_name,
+            sha256_hex(&identifier.unwrap())
+        ),
+        StorageType::EcdsaOnlineOutput => format!(
+            "{}/ecdsa/online/{}",
+            base_name,
+            sha256_hex(&identifier.unwrap())
+        ),
     }
 }
 
@@ -97,7 +117,7 @@ pub trait Storage {
         storage_type: StorageType,
         identifier: Option<&[u8]>,
     ) -> io::Result<Vec<u8>>;
-    
+
     // Helper for testing - checks if any data exists for this session
     fn has_session(&self, session_id: &SessionId) -> bool {
         self.read_data(*session_id, StorageType::Key, None).is_ok()
@@ -164,10 +184,14 @@ pub trait Storage {
     fn get_key_package(
         &self,
         session_id: SessionId,
-        identifier: &Identifier
+        identifier: &Identifier,
     ) -> Result<frost_ed25519::keys::KeyPackage, frost_ed25519::Error> {
         let data = self
-            .read_data(session_id, StorageType::Key, Some(&identifier.serialize()[..]))
+            .read_data(
+                session_id,
+                StorageType::Key,
+                Some(&identifier.serialize()[..]),
+            )
             .map_err(|err| {
                 log::error!("Errrr {:?}", err);
                 frost_ed25519::Error::DeserializationError
@@ -189,9 +213,17 @@ pub trait Storage {
             .map_err(|_| frost_ed25519::Error::DeserializationError)
     }
 
-    fn get_pubkey(&self, session_id: SessionId, identifier: &Identifier) -> Result<PublicKeyPackage, frost_ed25519::Error> {
+    fn get_pubkey(
+        &self,
+        session_id: SessionId,
+        identifier: &Identifier,
+    ) -> Result<PublicKeyPackage, frost_ed25519::Error> {
         let data = self
-            .read_data(session_id, StorageType::PubKey, Some(&identifier.serialize()[..]))
+            .read_data(
+                session_id,
+                StorageType::PubKey,
+                Some(&identifier.serialize()[..]),
+            )
             .map_err(|_| frost_ed25519::Error::DeserializationError)
             .unwrap();
         PublicKeyPackage::deserialize(&data).map_err(|_| frost_ed25519::Error::DeserializationError)
@@ -218,17 +250,17 @@ pub trait Storage {
     fn store_round2_packages(&mut self, session_id: SessionId, identifier: Identifier, data: &[u8]);
     fn store_commitment(&mut self, session_id: SessionId, identifier: Identifier, data: &[u8]);
     fn store_signature_share(&mut self, session_id: SessionId, identifier: Identifier, data: &[u8]);
-    
+
     // Read signature
     fn read_signature(&self, session_id: SessionId) -> io::Result<Vec<u8>> {
         self.read_data(session_id, StorageType::SignatureShare, None)
     }
-    
+
     // Store signature
     fn store_signature(&mut self, session_id: SessionId, signature: &[u8]) -> io::Result<()> {
         self.store_data(session_id, StorageType::SignatureShare, signature, None)
     }
-    
+
     // Remove signature (for testing)
     fn remove_signature(&mut self, _session_id: SessionId) -> io::Result<()> {
         // Default implementation - can be overridden by implementors
@@ -508,15 +540,15 @@ impl Storage for MemoryStorage {
             log::error!("Error storing data for round 2 {:?}", e)
         }
     }
-    
+
     fn remove_signature(&mut self, session_id: SessionId) -> io::Result<()> {
         // Remove the signature from data storage
         self.data.remove(&(session_id, StorageType::SignatureShare));
-        
+
         // Also remove from signature_shares storage
         let id = format_filename(session_id, &StorageType::SignatureShare, None);
         self.signature_shares.remove(&id);
-        
+
         Ok(())
     }
 }
@@ -529,7 +561,10 @@ impl Storage for FileStorage {
         data: &[u8],
         identifier: Option<&[u8]>,
     ) -> io::Result<()> {
-        println!("Storing data for session {} type {:?}, identifier {:?}", session_id, storage_type, identifier);
+        println!(
+            "Storing data for session {} type {:?}, identifier {:?}",
+            session_id, storage_type, identifier
+        );
         let filename = format_filename(session_id, &storage_type, identifier);
         store_file(filename, data)
     }
@@ -607,12 +642,12 @@ fn get_base_directory() -> PathBuf {
 pub fn store_file(filename: String, bytes: &[u8]) -> io::Result<()> {
     let mut path = get_base_directory();
     path.push(PathBuf::from(&filename));
-    
+
     // Create all parent directories if they don't exist
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
     }
-    
+
     let mut file = File::create(path)?;
     file.write_all(bytes)?;
     Ok(())

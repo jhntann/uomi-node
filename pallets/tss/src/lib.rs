@@ -67,9 +67,8 @@ pub const CRYPTO_KEY_TYPE: KeyTypeId = KeyTypeId(*b"tss-");
 pub mod crypto {
     use crate::CRYPTO_KEY_TYPE;
     use sp_core::sr25519::Signature as Sr25519Signature;
-    use sp_runtime::app_crypto::{ app_crypto, sr25519 };
-    use sp_runtime::{ traits::Verify, MultiSignature, MultiSigner };
-
+    use sp_runtime::app_crypto::{app_crypto, sr25519};
+    use sp_runtime::{traits::Verify, MultiSignature, MultiSigner};
 
     app_crypto!(sr25519, CRYPTO_KEY_TYPE);
 
@@ -84,13 +83,13 @@ pub mod crypto {
 
     // implemented for mock runtime in test
     impl frame_system::offchain::AppCrypto<<Sr25519Signature as Verify>::Signer, Sr25519Signature>
-    for AuthId {
+        for AuthId
+    {
         type RuntimeAppPublic = Public;
         type GenericSignature = sp_core::sr25519::Signature;
         type GenericPublic = sp_core::sr25519::Public;
     }
 }
-
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -135,14 +134,14 @@ pub mod pallet {
                 Err(_) => return false, // Public key must be exactly 33 bytes
             };
             let pubkey = sp_core::ecdsa::Public(pubkey_bytes);
-    
+
             // Convert Signature to [u8; 65] for ECDSA signature
             let signature_bytes: [u8; 65] = match sig.as_slice().try_into() {
                 Ok(bytes) => bytes,
                 Err(_) => return false, // Signature must be exactly 65 bytes
             };
             let signature = sp_core::ecdsa::Signature(signature_bytes);
-    
+
             // Verify the signature; it hashes the message internally with blake2_256
             signature.verify(message, &pubkey)
         }
@@ -231,7 +230,7 @@ pub mod pallet {
         DKGSessionCreated(SessionId),
         DKGReshareSessionCreated(SessionId),
         SigningSessionCreated(SessionId, SessionId), // Signing session ID, DKG session ID
-        DKGCompleted(SessionId, PublicKey),                // Aggregated public key
+        DKGCompleted(SessionId, PublicKey),          // Aggregated public key
         SigningCompleted(SessionId, Signature),      // Final aggregated signature
         SignatureSubmitted(SessionId),               // When signature is stored
         ValidatorIdAssigned(T::AccountId, u32),      // Validator account, ID
@@ -265,21 +264,17 @@ pub mod pallet {
         ) -> DispatchResult {
             // JACOPO QUA!!!
             let who = ensure_signed(origin)?;
-         
+
             // convert 5CiPPseXPECbkjWCa6MnjNokrgYjMqmKndv2rSnekmSK2DjL in accountId to whitelist
-            let raw_bytes = hex::decode("f49d2bc0033b1c3c3ede364a02096a2c05bbba0e39c4e0ea5f9e7d3abf2ba074")
-            .map_err(|_| Error::<T>::DecodingError)?;
-            
+            let raw_bytes =
+                hex::decode("f49d2bc0033b1c3c3ede364a02096a2c05bbba0e39c4e0ea5f9e7d3abf2ba074")
+                    .map_err(|_| Error::<T>::DecodingError)?;
+
             // Decodifica i bytes in un AccountId
-            let whitelisted = T::AccountId::decode(&mut &raw_bytes[..])
-                .map_err(|_| Error::<T>::DecodingError)?;
+            let whitelisted =
+                T::AccountId::decode(&mut &raw_bytes[..]).map_err(|_| Error::<T>::DecodingError)?;
 
-
-         
             ensure!(whitelisted == who, Error::<T>::UnauthorizedParticipation);
-         
-
-
 
             ensure!(threshold > 0, Error::<T>::InvalidThreshold);
 
@@ -342,18 +337,15 @@ pub mod pallet {
             let who = ensure_signed(origin)?;
 
             // Rimuovi il prefisso "0x" e converte la stringa hex in bytes
-            let raw_bytes = hex::decode("f49d2bc0033b1c3c3ede364a02096a2c05bbba0e39c4e0ea5f9e7d3abf2ba074")
-            .map_err(|_| Error::<T>::DecodingError)?;
-            
+            let raw_bytes =
+                hex::decode("f49d2bc0033b1c3c3ede364a02096a2c05bbba0e39c4e0ea5f9e7d3abf2ba074")
+                    .map_err(|_| Error::<T>::DecodingError)?;
 
             // Decodifica i bytes in un AccountId
-            let whitelisted = T::AccountId::decode(&mut &raw_bytes[..])
-                .map_err(|_| Error::<T>::DecodingError)?;
-    
-         
-            ensure!(whitelisted == who, Error::<T>::UnauthorizedParticipation);
+            let whitelisted =
+                T::AccountId::decode(&mut &raw_bytes[..]).map_err(|_| Error::<T>::DecodingError)?;
 
-          
+            ensure!(whitelisted == who, Error::<T>::UnauthorizedParticipation);
 
             // Find the DKG session with this NFT ID
             let mut dkg_session_id = None;
@@ -549,7 +541,6 @@ pub mod pallet {
             match call {
                 // Handle inherent extrinsics
                 Call::update_validators { .. } => {
-
                     return ValidTransaction::with_tag_prefix("TssPallet")
                         .priority(TransactionPriority::MAX)
                         .and_provides(call.encode())
@@ -570,7 +561,8 @@ pub mod pallet {
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
         fn offchain_worker(n: BlockNumberFor<T>) {
             let current_block_number = frame_system::Pallet::<T>::block_number().into(); // For finney update. remove on turing
-            if current_block_number >= TEMP_BLOCK_FOR_NEW_OPOC.into() { // For finney update. remove on turing
+            if current_block_number >= TEMP_BLOCK_FOR_NEW_OPOC.into() {
+                // For finney update. remove on turing
                 // Check for new validators every 10 blocks
                 if n % 10u32.into() != 0u32.into() {
                     return;
@@ -587,7 +579,7 @@ pub mod pallet {
                         new_validators.push(validator.clone());
                     }
                 }
-                
+
                 if !new_validators.is_empty() {
                     log::info!(
                         "[TSS] Found {} new validators that need IDs",
@@ -622,13 +614,14 @@ pub mod pallet {
 
                 // If no active validators are set, initialize them
                 log::info!("[TSS] Setting new validators at block {:?}", n);
-            }            
+            }
         }
 
         // Add on_initialize hook to handle validator initialization
         fn on_initialize(_n: BlockNumberFor<T>) -> Weight {
             let current_block_number = frame_system::Pallet::<T>::block_number().into(); // For finney update. remove on turing
-            if current_block_number >= TEMP_BLOCK_FOR_NEW_OPOC.into() { // For finney update. remove on turing
+            if current_block_number >= TEMP_BLOCK_FOR_NEW_OPOC.into() {
+                // For finney update. remove on turing
                 // Check if validator IDs have been initialized
                 if NextValidatorId::<T>::get() == 0 {
                     // Initialize with ID 1
@@ -677,7 +670,6 @@ pub mod pallet {
 
             // Get the next ID
             let next_id = Self::next_validator_id();
-            
 
             // Assign the ID
             ValidatorIds::<T>::insert(&validator, next_id);
@@ -705,7 +697,6 @@ pub mod pallet {
     }
 }
 
-
 sp_api::decl_runtime_apis! {
     pub trait TssApi {
         fn get_dkg_session_threshold(id: SessionId) -> u32;
@@ -720,5 +711,3 @@ sp_api::decl_runtime_apis! {
         fn get_all_validator_ids() -> Vec<(u32, [u8; 32])>;
     }
 }
-
-

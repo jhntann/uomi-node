@@ -20,7 +20,9 @@ use pallet_ipfs::{
 use pallet_session::{SessionHandler, ShouldEndSession};
 use pallet_staking::TestBenchmarkingConfig;
 use sp_core::{
-    offchain::{testing::TestOffchainExt, OffchainDbExt, OffchainWorkerExt}, sr25519::{self, Public, Signature, CRYPTO_ID}, ConstU128, ConstU16, ConstU32, ConstU64, Get, Pair, H256, U256
+    offchain::{testing::TestOffchainExt, OffchainDbExt, OffchainWorkerExt},
+    sr25519::{self, Public, Signature, CRYPTO_ID},
+    ConstU128, ConstU16, ConstU32, ConstU64, Get, Pair, H256, U256,
 };
 
 use sp_keystore::{testing::MemoryKeystore, Keystore, KeystoreExt};
@@ -359,8 +361,6 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
     }
     .assimilate_storage(&mut t)
     .unwrap();
-
-
 
     t.into()
 }

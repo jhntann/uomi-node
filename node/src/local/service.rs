@@ -23,29 +23,25 @@ use fc_rpc_core::types::{FeeHistoryCache, FilterPool};
 use futures::{FutureExt, StreamExt};
 use ipfs_manager::IpfsManager;
 use local_runtime::RuntimeEvent;
-use sc_client_api::{
-    Backend, BlockBackend, BlockchainEvents
-};
+use sc_client_api::{Backend, BlockBackend, BlockchainEvents};
 use sc_consensus::BoxBlockImport;
+#[cfg(not(feature = "manual-seal"))]
+use sc_consensus_babe::{BabeLink, BabeWorkerHandle, SlotProportion};
 use sc_consensus_grandpa::SharedVoterState;
 use sc_executor::NativeElseWasmExecutor;
 use sc_service::{error::Error as ServiceError, Configuration, TaskManager};
 use sc_telemetry::{Telemetry, TelemetryHandle, TelemetryWorker};
 use sc_transaction_pool_api::OffchainTransactionPoolFactory;
-use std::{
-    collections::BTreeMap,marker::PhantomData, sync::Arc, time::Duration,
-};
+use std::{collections::BTreeMap, marker::PhantomData, sync::Arc, time::Duration};
 use tss::{get_config, setup_gossip};
-#[cfg(not(feature = "manual-seal"))]
-use sc_consensus_babe::{BabeLink, BabeWorkerHandle, SlotProportion};
 
 #[cfg(feature = "evm-tracing")]
 use crate::{evm_tracing_types::EthApi as EthApiCmd, rpc::tracing};
 
 pub use local_runtime::RuntimeApi;
 
-use uomi_primitives::*;
 use sc_network::service::traits::NetworkStateInfo;
+use uomi_primitives::*;
 
 /// The minimum period of blocks on which justifications will be
 /// imported and generated.

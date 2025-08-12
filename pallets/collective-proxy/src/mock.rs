@@ -18,7 +18,6 @@
 
 use crate::{self as pallet_collective_proxy};
 
-use uomi_primitives::{Balance, BlockNumber};
 use frame_support::{
     construct_runtime, ord_parameter_types, parameter_types,
     traits::{ConstU128, ConstU32, InstanceFilter},
@@ -30,6 +29,7 @@ use sp_runtime::{
     traits::{BlakeTwo256, IdentityLookup},
     BuildStorage,
 };
+use uomi_primitives::{Balance, BlockNumber};
 
 use frame_system::EnsureSignedBy;
 

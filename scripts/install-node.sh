@@ -35,13 +35,13 @@ RESET="\033[0m"
 
 start_spinner() {
     local msg="$1"
-    
+
     # Return if no message provided
     [ -z "$msg" ] && return
 
     # Display initial message
     printf "%s " "$msg"
-    
+
     # Start spinner in background
     (
         while : ; do
@@ -50,21 +50,21 @@ start_spinner() {
                 sleep $SPINNER_DELAY
             done
         done
-    ) & 
+    ) &
 
     SPINNER_PID=$!
 }
 
 stop_spinner() {
     local result="$1"
-    
+
     # Kill spinner process if exists
     if [ -n "$SPINNER_PID" ]; then
         kill $SPINNER_PID 2>/dev/null
         wait $SPINNER_PID 2>/dev/null
         SPINNER_PID=""
     fi
-    
+
     # Clear line and show final status
     printf "\r"
     if [ "$result" = "success" ]; then
@@ -119,14 +119,14 @@ trap 'handle_error $LINENO' ERR
 # Verifica requisiti di sistema
 check_system_requirements() {
     log "${BLUE}Verifico i requisiti di sistema...${RESET}"
-    
+
     # Verifica RAM
     local total_ram=$(free -m | awk '/^Mem:/{print $2}')
     if [ $total_ram -lt $MIN_RAM_MB ]; then
         log "${RED}RAM insufficiente. Richiesti almeno ${MIN_RAM_MB}MB${RESET}"
         exit 1
     fi
-    
+
     # Verifica spazio disco
     local free_disk=$(df -BG / | awk 'NR==2 {print $4}' | sed 's/G//')
     if [ $free_disk -lt $MIN_DISK_GB ]; then
@@ -141,12 +141,12 @@ check_system_requirements() {
 create_secure_environment() {
     TMP_DIR=$(mktemp -d)
     chmod 700 $TMP_DIR
-    
+
     if [ ! -d $LOG_FILE ]; then
         sudo touch $LOG_FILE
         sudo chmod 644 $LOG_FILE
     fi
-    
+
     log "${GREEN}✓ Ambiente sicuro creato${RESET}"
 }
 
@@ -162,7 +162,7 @@ sudo_command() {
 # Installazione dipendenze
 install_dependencies() {
     start_spinner "Installazione dipendenze..."
-    
+
     sudo_command apt-get update -y > /dev/null 2>&1
     sudo_command apt-get install -y \
         curl \
@@ -173,7 +173,7 @@ install_dependencies() {
         cmake \
         git \
         libclang-dev > /dev/null 2>&1
-    
+
     if [ $? -eq 0 ]; then
         stop_spinner "success"
     else
@@ -190,18 +190,18 @@ setup_validator_keys() {
 
     # Genera una singola chiave Sr25519 che verrà usata per tutti i pallet
     "${BINARY_PATH}" key generate --scheme Sr25519 --output-type json > "${TMP_DIR}/validator.json"
-    
+
     # Verifica che la chiave sia stata generata correttamente
     if ! jq -e '.publicKey' "${TMP_DIR}/validator.json" > /dev/null; then
         log "${RED}Errore nella generazione della chiave${RESET}"
         exit 1
     fi
-    
+
     # Estrai le informazioni della chiave
     jq -r '.secretPhrase' "${TMP_DIR}/validator.json" > "${TMP_DIR}/validator_phrase"
     jq -r '.secretSeed' "${TMP_DIR}/validator.json" > "${TMP_DIR}/validator_seed"
     jq -r '.publicKey' "${TMP_DIR}/validator.json" > "${TMP_DIR}/validator_public"
-    
+
     # Per GRANDPA, converti la stessa chiave in Ed25519
     "${BINARY_PATH}" key inspect --scheme Ed25519 "$(cat ${TMP_DIR}/validator_phrase)" > "${TMP_DIR}/validator_ed.json"
     jq -r '.publicKey' "${TMP_DIR}/validator_ed.json" > "${TMP_DIR}/validator_ed_public"
@@ -215,7 +215,7 @@ create_service_file() {
     local node_type=$1
     local node_name=$2
     local service_content=""
-    
+
     case "${node_type}" in
         validator)
             service_content="ExecStart=${BINARY_PATH} \\
@@ -263,14 +263,14 @@ create_service_file() {
 # Setup nodo
 setup_node() {
     start_spinner "Configurazione nodo..."
-    
+
     # Crea utente per il servizio
     sudo_command useradd --no-create-home --shell /usr/sbin/nologin uomi > /dev/null 2>&1 || true
-    
+
     # Crea directory necessarie
     sudo_command mkdir -p $NODE_PATH
     sudo_command chown -R uomi:uomi $NODE_PATH
-    
+
     # Copia i file necessari
     if [ -f ./genesis.json ]; then
         sudo_command cp ./genesis.json $CHAIN_SPEC_PATH
@@ -279,7 +279,7 @@ setup_node() {
         log "${RED}File genesis.json non trovato${RESET}"
         exit 1
     fi
-    
+
     if [ -f ./uomi ]; then
         sudo_command cp ./uomi $BINARY_PATH
     elif [ -f ./target/release/uomi ]; then
@@ -289,7 +289,7 @@ setup_node() {
         log "${RED}Binary uomi non trovato${RESET}"
         exit 1
     fi
-    
+
     sudo_command chmod +x $BINARY_PATH
     stop_spinner "success"
 }
@@ -297,10 +297,10 @@ setup_node() {
 # Inserimento chiavi validatore
 insert_validator_keys() {
     start_spinner "Inserimento chiavi validatore..."
-    
+
     local attempts=0
     local max_attempts=30
-    
+
     while ! curl -s -H "Content-Type: application/json" \
         -d '{"id":1, "jsonrpc":"2.0", "method": "system_health", "params":[]}' \
         http://localhost:$DEFAULT_RPC_PORT > /dev/null; do
@@ -361,18 +361,18 @@ backup_validator_keys() {
         exit 1
     }
     chmod 700 "$backup_dir"
-    
+
     cp "$TMP_DIR"/* "$backup_dir/" || {
         log "${RED}Errore nella copia dei file di backup${RESET}"
         exit 1
     }
     chmod 600 "$backup_dir"/*
-    
+
     if [ ! -f "$backup_dir/validator_phrase" ]; then
         log "${RED}Backup incompleto${RESET}"
         exit 1
     fi
-    
+
     log "${GREEN}✓ Backup chiavi salvato in: $backup_dir${RESET}"
     log "${YELLOW}IMPORTANTE: Salva queste chiavi in un posto sicuro!${RESET}"
 }
@@ -397,55 +397,55 @@ install_node() {
         3) node_type="validator" ;;
         *) log "${RED}Tipo nodo non valido${RESET}"; exit 1 ;;
     esac
-    
+
     local node_name=$2
-    
+
     check_system_requirements
     create_secure_environment
     install_dependencies
     setup_node
-    
+
     if [ "$node_type" = "validator" ]; then
         setup_validator_keys "$node_name"
     fi
-    
+
     create_service_file "$node_type" "$node_name"
-    
+
     sudo_command systemctl daemon-reload
     sudo_command systemctl enable uomi.service
     sudo_command systemctl start uomi.service
-    
+
     if [ "$node_type" = "validator" ]; then
         insert_validator_keys
         backup_validator_keys
         print_validator_info "$node_name"
     fi
-    
+
     log "${GREEN}Nodo $node_type installato e avviato con successo${RESET}"
 }
 
 # Rimozione nodo
 remove_node() {
     log "${YELLOW}Rimozione nodo...${RESET}"
-    
+
     if [ -f $SERVICE_FILE ]; then
         sudo_command systemctl stop uomi.service
         sudo_command systemctl disable uomi.service
         sudo_command rm $SERVICE_FILE
     fi
-    
+
     if [ -d $NODE_PATH ]; then
         sudo_command rm -rf $NODE_PATH
     fi
-    
+
     if [ -f $BINARY_PATH ]; then
         sudo_command rm $BINARY_PATH
     fi
-    
+
     if [ -f $CHAIN_SPEC_PATH ]; then
         sudo_command rm $CHAIN_SPEC_PATH
     fi
-    
+
     log "${GREEN}✓ Nodo rimosso con successo${RESET}"
 }
 
@@ -494,7 +494,7 @@ main() {
 \n"
 
     trap cleanup EXIT
-    
+
     while true; do
         show_menu
         read -p "Scelta: " choice

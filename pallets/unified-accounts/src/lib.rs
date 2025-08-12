@@ -63,10 +63,6 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use uomi_primitives::{
-    evm::{EvmAddress, UnifiedAddressMapper},
-    Balance,
-};
 use frame_support::{
     pallet_prelude::*,
     traits::{
@@ -85,6 +81,10 @@ use sp_runtime::{
     MultiAddress,
 };
 use sp_std::marker::PhantomData;
+use uomi_primitives::{
+    evm::{EvmAddress, UnifiedAddressMapper},
+    Balance,
+};
 
 pub use pallet::*;
 

@@ -1,11 +1,11 @@
 use super::{Config, Pallet, Weight};
-use uomi_primitives::evm::EvmAddress;
 use frame_support::{
     pallet_prelude::OptionQuery,
     storage_alias,
     traits::{Get, OnRuntimeUpgrade},
     Blake2_128Concat,
 };
+use uomi_primitives::evm::EvmAddress;
 
 #[storage_alias]
 type EvmToNative<T: Config> = StorageMap<

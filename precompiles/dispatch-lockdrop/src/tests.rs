@@ -24,11 +24,11 @@ use sp_core::crypto::{AccountId32, Ss58Codec};
 
 use crate::mock::*;
 
-use uomi_primitives::evm::EvmAddress;
 use hex_literal::hex;
 use parity_scale_codec::Encode;
 use precompile_utils::testing::*;
 use sp_core::{ecdsa, Pair};
+use uomi_primitives::evm::EvmAddress;
 
 fn precompiles() -> TestPrecompileSet<TestRuntime> {
     PrecompilesValue::get()

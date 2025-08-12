@@ -20,13 +20,12 @@ use crate::mock::*;
 use assets_chain_extension_types::selector_bytes;
 use frame_support::assert_ok;
 use frame_support::traits::Currency;
-use pallet_contracts::{CollectEvents, DebugInfo, Determinism, Code, ExecReturnValue};
+use pallet_contracts::{Code, CollectEvents, DebugInfo, Determinism, ExecReturnValue};
 use parity_scale_codec::Encode;
 use sp_core::crypto::AccountId32;
 use sp_io::hashing::blake2_256;
 use sp_runtime::DispatchError;
 use std::fs;
-
 
 // It maps chain extension functions to ink! callable messages
 // ex:

@@ -16,7 +16,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Uomi. If not, see <http://www.gnu.org/licenses/>.
 
-
 #[cfg(feature = "evm-tracing")]
 use crate::evm_tracing_types::EthApiOptions;
 use sc_cli::RunCmd;
@@ -97,5 +96,3 @@ pub enum Subcommand {
     /// No moved to separte cli and just a placeholder command here
     TryRuntime,
 }
-
-

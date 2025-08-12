@@ -1,29 +1,26 @@
-use frame_support::assert_ok;
-use frame_support::traits::{ Currency, Hooks };
-use sp_core::offchain::testing::{ TestOffchainExt, TestTransactionPoolExt };
-use sp_core::offchain::{ OffchainDbExt, OffchainWorkerExt, TransactionPoolExt };
-use sp_keystore::testing::MemoryKeystore;
-use sp_keystore::{ Keystore, KeystoreExt };
 use crate::mock::*;
+use frame_support::assert_ok;
+use frame_support::traits::{Currency, Hooks};
+use sp_core::offchain::testing::{TestOffchainExt, TestTransactionPoolExt};
+use sp_core::offchain::{OffchainDbExt, OffchainWorkerExt, TransactionPoolExt};
+use sp_keystore::testing::MemoryKeystore;
+use sp_keystore::{Keystore, KeystoreExt};
 
+use crate::mock::*;
+use crate::types::MaxCidSize;
 use crate::{
-    NodesPins,
-    Event,
-    AgentsPins,
-    CidsStatus,
-    InherentDidUpdate,
-    Error,
-    MinExpireDuration,
+    AgentsPins, CidsStatus, Error, Event, InherentDidUpdate, MinExpireDuration, NodesPins,
     CRYPTO_KEY_TYPE,
 };
-use std::{ io::Write, sync::{ Arc, Mutex } };
-use frame_support::assert_noop;
-use crate::types::MaxCidSize;
 use env_logger::Builder;
+use frame_support::assert_noop;
 use log::LevelFilter;
-use crate::mock::*;
 use sp_core::U256;
 use sp_runtime::BoundedVec;
+use std::{
+    io::Write,
+    sync::{Arc, Mutex},
+};
 
 // Helper function to create a test CID
 fn create_test_cid() -> BoundedVec<u8, MaxCidSize> {
@@ -48,24 +45,20 @@ fn create_test_validators(num_validators: u32, stake: u128) -> Vec<AccountId> {
         let _ = <Balances as Currency<AccountId>>::make_free_balance_be(&account_id, stake);
 
         // Bond the validator
-        assert_ok!(
-            Staking::bond(
-                RuntimeOrigin::signed(account_id.clone()),
-                stake,
-                pallet_staking::RewardDestination::Staked
-            )
-        );
+        assert_ok!(Staking::bond(
+            RuntimeOrigin::signed(account_id.clone()),
+            stake,
+            pallet_staking::RewardDestination::Staked
+        ));
 
         // Set validator preferences
-        assert_ok!(
-            Staking::validate(
-                RuntimeOrigin::signed(account_id.clone()),
-                pallet_staking::ValidatorPrefs {
-                    commission: sp_runtime::Perbill::from_percent(0),
-                    blocked: false,
-                }
-            )
-        );
+        assert_ok!(Staking::validate(
+            RuntimeOrigin::signed(account_id.clone()),
+            pallet_staking::ValidatorPrefs {
+                commission: sp_runtime::Perbill::from_percent(0),
+                blocked: false,
+            }
+        ));
 
         validators.push(account_id);
     }
@@ -84,7 +77,11 @@ fn test_pin_agent_works() {
         let cid = create_test_cid();
         let nft_id = U256::from(1);
 
-        assert_ok!(TestingPallet::pin_agent(RuntimeOrigin::signed(account), cid.clone(), nft_id));
+        assert_ok!(TestingPallet::pin_agent(
+            RuntimeOrigin::signed(account),
+            cid.clone(),
+            nft_id
+        ));
 
         // Check storage updates
         assert_eq!(AgentsPins::<Test>::get(nft_id), cid);
@@ -95,7 +92,8 @@ fn test_pin_agent_works() {
             (Event::IpfsOperationSuccess {
                 operation: crate::IpfsOperation::Pin,
                 cid: cid.to_vec(),
-            }).into()
+            })
+            .into(),
         );
     });
 }
@@ -111,7 +109,11 @@ fn test_pin_file_works() {
         let cid = create_test_cid();
         let duration: u64 = 30000; // More than MinExpireDuration (28800)
 
-        assert_ok!(TestingPallet::pin_file(RuntimeOrigin::signed(account), cid.clone(), duration));
+        assert_ok!(TestingPallet::pin_file(
+            RuntimeOrigin::signed(account),
+            cid.clone(),
+            duration
+        ));
 
         let current_block = System::block_number();
         let expected_expiry = current_block + duration;
@@ -126,7 +128,8 @@ fn test_pin_file_works() {
             (Event::TemporaryPinCreated {
                 cid: cid.to_vec(),
                 expires_at: expected_expiry,
-            }).into()
+            })
+            .into(),
         );
     });
 }
@@ -161,7 +164,9 @@ fn test_offchain_worker_functionality() {
 
     // Create and register keystore
     let keystore = Arc::new(MemoryKeystore::new());
-    let public_key = keystore.sr25519_generate_new(CRYPTO_KEY_TYPE, None).unwrap();
+    let public_key = keystore
+        .sr25519_generate_new(CRYPTO_KEY_TYPE, None)
+        .unwrap();
     ext.register_extension(KeystoreExt(keystore));
 
     ext.execute_with(|| {
@@ -175,24 +180,20 @@ fn test_offchain_worker_functionality() {
         let _ = <Balances as Currency<AccountId>>::make_free_balance_be(&account_id, stake);
 
         // Bond the validator
-        assert_ok!(
-            Staking::bond(
-                RuntimeOrigin::signed(account_id.clone()),
-                stake,
-                pallet_staking::RewardDestination::Staked
-            )
-        );
+        assert_ok!(Staking::bond(
+            RuntimeOrigin::signed(account_id.clone()),
+            stake,
+            pallet_staking::RewardDestination::Staked
+        ));
 
         // Set validator preferences
-        assert_ok!(
-            Staking::validate(
-                RuntimeOrigin::signed(account_id.clone()),
-                pallet_staking::ValidatorPrefs {
-                    commission: sp_runtime::Perbill::from_percent(0),
-                    blocked: false,
-                }
-            )
-        );
+        assert_ok!(Staking::validate(
+            RuntimeOrigin::signed(account_id.clone()),
+            pallet_staking::ValidatorPrefs {
+                commission: sp_runtime::Perbill::from_percent(0),
+                blocked: false,
+            }
+        ));
 
         let cid = create_test_cid();
 
@@ -205,7 +206,10 @@ fn test_offchain_worker_functionality() {
 
         // Verify transaction was created
         let tx_pool = pool_state.read();
-        assert!(!tx_pool.transactions.is_empty(), "Transaction pool should not be empty");
+        assert!(
+            !tx_pool.transactions.is_empty(),
+            "Transaction pool should not be empty"
+        );
     });
 }
 
@@ -252,12 +256,18 @@ fn test_pin_agent_update() {
         let nft_id = U256::from(1);
 
         // Pin first CID
-        assert_ok!(
-            TestingPallet::pin_agent(RuntimeOrigin::signed(account.clone()), cid1.clone(), nft_id)
-        );
+        assert_ok!(TestingPallet::pin_agent(
+            RuntimeOrigin::signed(account.clone()),
+            cid1.clone(),
+            nft_id
+        ));
 
         // Update with second CID
-        assert_ok!(TestingPallet::pin_agent(RuntimeOrigin::signed(account), cid2.clone(), nft_id));
+        assert_ok!(TestingPallet::pin_agent(
+            RuntimeOrigin::signed(account),
+            cid2.clone(),
+            nft_id
+        ));
 
         // Check storage updates
         assert_eq!(AgentsPins::<Test>::get(nft_id), cid2);
@@ -287,7 +297,9 @@ fn test_pin_expiration() {
 
     // Create and register keystore
     let keystore = Arc::new(MemoryKeystore::new());
-    let public_key = keystore.sr25519_generate_new(CRYPTO_KEY_TYPE, None).unwrap();
+    let public_key = keystore
+        .sr25519_generate_new(CRYPTO_KEY_TYPE, None)
+        .unwrap();
     ext.register_extension(KeystoreExt(keystore));
 
     ext.execute_with(|| {
@@ -301,36 +313,30 @@ fn test_pin_expiration() {
         let _ = <Balances as Currency<AccountId>>::make_free_balance_be(&account_id, stake);
 
         // Bond the validator
-        assert_ok!(
-            Staking::bond(
-                RuntimeOrigin::signed(account_id.clone()),
-                stake,
-                pallet_staking::RewardDestination::Staked
-            )
-        );
+        assert_ok!(Staking::bond(
+            RuntimeOrigin::signed(account_id.clone()),
+            stake,
+            pallet_staking::RewardDestination::Staked
+        ));
 
         // Set validator preferences
-        assert_ok!(
-            Staking::validate(
-                RuntimeOrigin::signed(account_id.clone()),
-                pallet_staking::ValidatorPrefs {
-                    commission: sp_runtime::Perbill::from_percent(0),
-                    blocked: false,
-                }
-            )
-        );
+        assert_ok!(Staking::validate(
+            RuntimeOrigin::signed(account_id.clone()),
+            pallet_staking::ValidatorPrefs {
+                commission: sp_runtime::Perbill::from_percent(0),
+                blocked: false,
+            }
+        ));
 
         let cid = create_test_cid();
         let duration: u64 = 30000;
 
         // Pin file with expiration
-        assert_ok!(
-            TestingPallet::pin_file(
-                RuntimeOrigin::signed(account_id.clone()),
-                cid.clone(),
-                duration
-            )
-        );
+        assert_ok!(TestingPallet::pin_file(
+            RuntimeOrigin::signed(account_id.clone()),
+            cid.clone(),
+            duration
+        ));
 
         // Fast forward to after expiration
         System::set_block_number(31000);
@@ -390,12 +396,10 @@ fn test_inherent_data_processing() {
         let to_remove = Vec::new();
 
         // Test setting inherent data
-        assert_ok!(
-            TestingPallet::set_inherent_data(RuntimeOrigin::none(), (
-                usable.clone(),
-                to_remove.clone(),
-            ))
-        );
+        assert_ok!(TestingPallet::set_inherent_data(
+            RuntimeOrigin::none(),
+            (usable.clone(), to_remove.clone(),)
+        ));
 
         // Verify InherentDidUpdate storage is set
         assert!(InherentDidUpdate::<Test>::get());
@@ -426,7 +430,10 @@ fn test_inherent_data_removal() {
         let to_remove = vec![(cid.clone(), (expires_at, usable_from))];
 
         // Test setting inherent data for removal
-        assert_ok!(TestingPallet::set_inherent_data(RuntimeOrigin::none(), (usable, to_remove)));
+        assert_ok!(TestingPallet::set_inherent_data(
+            RuntimeOrigin::none(),
+            (usable, to_remove)
+        ));
 
         // Verify CID was removed from storage
         assert!(!CidsStatus::<Test>::contains_key(&cid));
@@ -489,17 +496,18 @@ fn test_concurrent_pin_operations() {
         log::info!("MinExpireDuration: {:?}", MinExpireDuration::get());
 
         // First pin should succeed
-        assert_ok!(
-            TestingPallet::pin_agent(
-                RuntimeOrigin::signed(account.clone()),
-                initial_cid.clone(),
-                nft_id
-            )
-        );
+        assert_ok!(TestingPallet::pin_agent(
+            RuntimeOrigin::signed(account.clone()),
+            initial_cid.clone(),
+            nft_id
+        ));
 
         // Verify initial state
         assert_eq!(AgentsPins::<Test>::get(nft_id), initial_cid);
-        assert_eq!(CidsStatus::<Test>::get(&initial_cid), (U256::zero(), U256::zero()));
+        assert_eq!(
+            CidsStatus::<Test>::get(&initial_cid),
+            (U256::zero(), U256::zero())
+        );
 
         // Attempt to pin the same CID again should fail
         assert_noop!(
@@ -527,13 +535,11 @@ fn test_concurrent_pin_operations() {
                 CidsStatus::<Test>::get(&previous_cid)
             );
 
-            assert_ok!(
-                TestingPallet::pin_agent(
-                    RuntimeOrigin::signed(account.clone()),
-                    new_cid.clone(),
-                    nft_id
-                )
-            );
+            assert_ok!(TestingPallet::pin_agent(
+                RuntimeOrigin::signed(account.clone()),
+                new_cid.clone(),
+                nft_id
+            ));
 
             // Forward block and verify immediately after
             System::set_block_number(System::block_number() + 1);
@@ -552,7 +558,10 @@ fn test_concurrent_pin_operations() {
 
             // Verify the new CID is set correctly
             assert_eq!(AgentsPins::<Test>::get(nft_id), new_cid);
-            assert_eq!(CidsStatus::<Test>::get(&new_cid), (U256::zero(), U256::zero()));
+            assert_eq!(
+                CidsStatus::<Test>::get(&new_cid),
+                (U256::zero(), U256::zero())
+            );
         }
     });
 }
@@ -577,9 +586,11 @@ fn test_pin_lifecycle_with_inherents() {
         let duration: u64 = 30000;
 
         // Step 1: Pin file
-        assert_ok!(
-            TestingPallet::pin_file(RuntimeOrigin::signed(account.clone()), cid.clone(), duration)
-        );
+        assert_ok!(TestingPallet::pin_file(
+            RuntimeOrigin::signed(account.clone()),
+            cid.clone(),
+            duration
+        ));
 
         // Step 2: Create validators and simulate pinning
         let validators = create_test_validators(5, 1000);
@@ -589,7 +600,10 @@ fn test_pin_lifecycle_with_inherents() {
 
         // Step 3: Process inherent data to mark as usable
         let usable = vec![(cid.clone(), (U256::from(duration), U256::from(1)))];
-        assert_ok!(TestingPallet::set_inherent_data(RuntimeOrigin::none(), (usable, Vec::new())));
+        assert_ok!(TestingPallet::set_inherent_data(
+            RuntimeOrigin::none(),
+            (usable, Vec::new())
+        ));
         InherentDidUpdate::<Test>::take();
 
         // Step 4: Fast forward to expiration
@@ -597,9 +611,10 @@ fn test_pin_lifecycle_with_inherents() {
 
         // Step 5: Process removal via inherent
         let to_remove = vec![(cid.clone(), (U256::from(duration), U256::from(1)))];
-        assert_ok!(
-            TestingPallet::set_inherent_data(RuntimeOrigin::none(), (Vec::new(), to_remove))
-        );
+        assert_ok!(TestingPallet::set_inherent_data(
+            RuntimeOrigin::none(),
+            (Vec::new(), to_remove)
+        ));
         InherentDidUpdate::<Test>::take();
 
         // Verify final state
@@ -623,7 +638,11 @@ fn test_multiple_file_management() {
             let cid = BoundedVec::try_from(cid_data).expect("Vector exceeds bound");
             cids.push(cid.clone());
 
-            assert_ok!(TestingPallet::pin_file(RuntimeOrigin::signed(account.clone()), cid, 30000));
+            assert_ok!(TestingPallet::pin_file(
+                RuntimeOrigin::signed(account.clone()),
+                cid,
+                30000
+            ));
         }
 
         // Verify all files are stored correctly
@@ -644,13 +663,11 @@ fn test_edge_case_pin_scenarios() {
 
         // Test with maximum duration
         let max_duration: u64 = u64::MAX;
-        assert_ok!(
-            TestingPallet::pin_file(
-                RuntimeOrigin::signed(account.clone()),
-                cid.clone(),
-                max_duration
-            )
-        );
+        assert_ok!(TestingPallet::pin_file(
+            RuntimeOrigin::signed(account.clone()),
+            cid.clone(),
+            max_duration
+        ));
 
         // Test rapid pin/unpin cycles
         let nft_id = U256::from(1);
@@ -659,9 +676,11 @@ fn test_edge_case_pin_scenarios() {
             cid_data.extend_from_slice(&[i as u8; 45]);
             let new_cid = BoundedVec::try_from(cid_data).expect("Vector exceeds bound");
 
-            assert_ok!(
-                TestingPallet::pin_agent(RuntimeOrigin::signed(account.clone()), new_cid, nft_id)
-            );
+            assert_ok!(TestingPallet::pin_agent(
+                RuntimeOrigin::signed(account.clone()),
+                new_cid,
+                nft_id
+            ));
         }
     });
 }

@@ -1,35 +1,27 @@
 use frame_election_provider_support::{
-    bounds::{ ElectionBounds, ElectionBoundsBuilder },
-    onchain,
-    SequentialPhragmen,
+    bounds::{ElectionBounds, ElectionBoundsBuilder},
+    onchain, SequentialPhragmen,
 };
 // INCLUDES
 use frame_support::{
-    construct_runtime,
-    derive_impl,
-    parameter_types,
-    traits::EstimateNextSessionRotation,
+    construct_runtime, derive_impl, parameter_types, traits::EstimateNextSessionRotation,
     weights::Weight,
 };
 use frame_system::offchain::{
-    AppCrypto,
-    CreateSignedTransaction,
-    SendTransactionTypes,
-    SigningTypes,
+    AppCrypto, CreateSignedTransaction, SendTransactionTypes, SigningTypes,
 };
-use pallet_session::{ SessionHandler, ShouldEndSession };
+use pallet_session::{SessionHandler, ShouldEndSession};
 use pallet_staking::TestBenchmarkingConfig;
-use sp_core::{ sr25519::{ Public, Signature }, ConstU16, ConstU32, ConstU64, Get, H256, ConstU128 };
+use sp_core::{
+    sr25519::{Public, Signature},
+    ConstU128, ConstU16, ConstU32, ConstU64, Get, H256,
+};
 
 use sp_runtime::{
     curve::PiecewiseLinear,
-    testing::{ TestXt, UintAuthorityId },
-    traits::{ BlakeTwo256, IdentityLookup },
-    BuildStorage,
-    KeyTypeId,
-    Perbill,
-    Permill,
-    RuntimeAppPublic,
+    testing::{TestXt, UintAuthorityId},
+    traits::{BlakeTwo256, IdentityLookup},
+    BuildStorage, KeyTypeId, Perbill, Permill, RuntimeAppPublic,
 };
 use sp_staking::currency_to_vote::SaturatingCurrencyToVote;
 
@@ -190,7 +182,7 @@ impl CreateSignedTransaction<crate::Call<Test>> for Test {
         call: crate::Call<Test>,
         _public: Self::Public,
         _account: <Test as frame_system::Config>::AccountId,
-        nonce: <Test as frame_system::Config>::Nonce
+        nonce: <Test as frame_system::Config>::Nonce,
     ) -> Option<(crate::Call<Test>, (u64, (u64, ())))> {
         Some((call, (nonce, (nonce, ()))))
     }
@@ -251,8 +243,9 @@ impl<AId> SessionHandler<AId> for TestSessionHandler {
     fn on_new_session<T>(
         _changed: bool,
         _validators: &[(AId, T)],
-        _queued_validators: &[(AId, T)]
-    ) {}
+        _queued_validators: &[(AId, T)],
+    ) {
+    }
     fn on_disabled(_validator_index: u32) {}
 }
 // TIMESTAMP
@@ -265,7 +258,9 @@ impl pallet_timestamp::Config for Test {
 
 // Create test externalities
 pub fn new_test_ext() -> sp_io::TestExternalities {
-    let mut t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
+    let mut t = frame_system::GenesisConfig::<Test>::default()
+        .build_storage()
+        .unwrap();
 
     (pallet_balances::GenesisConfig::<Test> { balances: vec![] })
         .assimilate_storage(&mut t)
@@ -278,8 +273,8 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
         slash_reward_fraction: Perbill::from_percent(10),
         ..Default::default()
     })
-        .assimilate_storage(&mut t)
-        .unwrap();
+    .assimilate_storage(&mut t)
+    .unwrap();
 
     t.into()
 }

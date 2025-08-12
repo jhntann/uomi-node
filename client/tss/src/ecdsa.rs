@@ -7,8 +7,8 @@ use multi_party_ecdsa::{
     communication::sending_messages::SendingMessages,
     protocols::multi_party::dmz21::{
         keygen::{KeyGenPhase, Parameters},
+        reshare::ReshareKeyPhase,
         sign::{SignPhase, SignPhaseOnline},
-        reshare::ReshareKeyPhase
     },
 };
 
@@ -84,7 +84,7 @@ impl ECDSAManager {
         t: usize,
         _n: usize,
         keys: Option<String>,
-    ) -> Option<()> {   
+    ) -> Option<()> {
         let reshare = ReshareKeyPhase::new(party_id, party_ids, new_party_ids, t, keys);
 
         if let Err(error) = reshare {
@@ -167,7 +167,10 @@ impl ECDSAManager {
         index: ECDSAIndexWrapper,
         message: &Vec<u8>,
     ) -> Result<SendingMessages, ECDSAError> {
-        println!("TSS: handle_keygen_message from index {:?}", index.get_index());
+        println!(
+            "TSS: handle_keygen_message from index {:?}",
+            index.get_index()
+        );
         if let Some(mut keygen) = self.get_keygen(session_id) {
             log::info!("[TSS] handling key gen message");
             return keygen
@@ -317,7 +320,10 @@ impl ECDSAManager {
         }
     }
 
-    pub fn get_reshare(&mut self, session_id: SessionId) -> Option<RwLockWriteGuard<'_, ReshareKeyPhase>> {
+    pub fn get_reshare(
+        &mut self,
+        session_id: SessionId,
+    ) -> Option<RwLockWriteGuard<'_, ReshareKeyPhase>> {
         match self.reshares.get(&session_id) {
             Some(data) => Some(data.write().unwrap()),
             None => None,
@@ -338,9 +344,7 @@ impl ECDSAManager {
         }
         Err(ECDSAError::KeygenNotFound)
     }
-            
 }
-
 
 #[derive(Clone)]
 pub struct ECDSAIndexWrapper(pub String);

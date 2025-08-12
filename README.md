@@ -98,37 +98,37 @@ Defining _features_ in the root `Cargo.toml` is additive with the features defin
 Running node locally for development purposes is simple. After the node is compiled (see above), run the following command:
 
 ```bash
-./target/release/uomi --base-path /tmp/alice --dev --alice 
+./target/release/uomi --base-path /tmp/alice --dev --alice
 ```
 
 To start multiple nodes you can use **foreman**. First, install it with `gem install foreman`. Then run the following command:
 
 ```bash
 foreman start -f Procfile.dev
-``` 
+```
 
 After the setup of nodes you need to insert keys inside the pallets using the following command:
 
 ```bash
 curl -H "Content-Type: application/json" \
 -d '{"id": 1, "jsonrpc":"2.0", "method": "author_insertKey", "params":["ipfs", "//Alice//stash", "0xbe5ddb1579b72e84524fc29e78609e3caf42e85aa118ebfe0b0ad404b5bdd25f"]}' \
-http://localhost:9944 
+http://localhost:9944
 
 curl -H "Content-Type: application/json" \
 -d '{"id": 1, "jsonrpc":"2.0", "method": "author_insertKey", "params":["uomi", "//Alice//stash", "0xbe5ddb1579b72e84524fc29e78609e3caf42e85aa118ebfe0b0ad404b5bdd25f"]}' \
-http://localhost:9944 
+http://localhost:9944
 
 curl -H "Content-Type: application/json" \
 -d '{"id": 1, "jsonrpc":"2.0", "method": "author_insertKey", "params":["uomi", "//Bob//stash", "0xfe65717dad0447d715f660a0a58411de509b42e6efb8375f562f58a554d5860e"]}' \
-http://localhost:9945 
+http://localhost:9945
 
 curl -H "Content-Type: application/json" \
 -d '{"id": 1, "jsonrpc":"2.0", "method": "author_insertKey", "params":["ipfs", "//Bob//stash", "0xfe65717dad0447d715f660a0a58411de509b42e6efb8375f562f58a554d5860e"]}' \
-http://localhost:9945 
+http://localhost:9945
 
 curl -H "Content-Type: application/json" \
 -d '{"id": 1, "jsonrpc":"2.0", "method": "author_insertKey", "params":["uomi", "//Charlie", "0x1e07379407fecc4b89eb7dbd287c2c781cfb1907a96947a3eb18e4f8e7198625"]}' \
-http://localhost:9946 
+http://localhost:9946
 
 curl -H "Content-Type: application/json" \
 -d '{"id": 1, "jsonrpc":"2.0", "method": "author_insertKey", "params":["ipfs", "//Charlie", "0x1e07379407fecc4b89eb7dbd287c2c781cfb1907a96947a3eb18e4f8e7198625"]}' \

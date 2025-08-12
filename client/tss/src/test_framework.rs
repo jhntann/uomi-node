@@ -73,7 +73,6 @@ impl TestNetwork {
         let node_keys = nodes.keys().cloned().collect::<Vec<_>>();
         let node_keys_inner = nodes.keys().cloned().collect::<Vec<_>>();
 
-
         assert_eq!(node_keys.len(), node_count);
 
         for peer_id in node_keys {
@@ -83,16 +82,25 @@ impl TestNetwork {
                 if peer_id != *other_peer_id {
                     node.session_manager.peer_mapper.lock().unwrap().add_peer(
                         other_peer_id.clone(),
-                        nodes.get(other_peer_id).unwrap().session_manager.validator_key.clone(),
+                        nodes
+                            .get(other_peer_id)
+                            .unwrap()
+                            .session_manager
+                            .validator_key
+                            .clone(),
                     );
-            
                 }
-            
             }
             // verify that each peer_mapper contains the elements it should
             assert_eq!(
                 node_count,
-                node.session_manager.peer_mapper.lock().unwrap().peers.keys().len()
+                node.session_manager
+                    .peer_mapper
+                    .lock()
+                    .unwrap()
+                    .peers
+                    .keys()
+                    .len()
             );
         }
 
@@ -130,7 +138,11 @@ impl TestNetwork {
             // Handle broadcast (empty recipient) or direct message
             let recipients = if recipient_bytes.is_empty() {
                 // if it's broadcast it means we send to everyone BUT the sender_id
-                self.nodes.keys().filter(|key| **key != sender_id).cloned().collect()
+                self.nodes
+                    .keys()
+                    .filter(|key| **key != sender_id)
+                    .cloned()
+                    .collect()
             } else {
                 vec![PeerId::from_bytes(&recipient_bytes).unwrap()]
             };

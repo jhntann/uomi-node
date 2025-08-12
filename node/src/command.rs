@@ -19,14 +19,11 @@
 //! Uomi CLI handlers.
 use crate::{
     cli::{Cli, Subcommand},
-    local::{self, development_config},
     finney::{self, testnet_config},
-    uomi::{self, mainnet_config, chain_spec as chain_spec_uomi},
-
+    local::{self, development_config},
+    uomi::{self, chain_spec as chain_spec_uomi, mainnet_config},
 };
-use sc_cli::{
-       Result, SubstrateCli,
-};
+use sc_cli::{Result, SubstrateCli};
 use sc_service::PartialComponents;
 
 #[cfg(feature = "runtime-benchmarks")]
@@ -67,9 +64,9 @@ fn load_spec(id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, St
         "dev" => Box::new(development_config()),
         "finney" => Box::new(testnet_config()),
         "uomi" => Box::new(mainnet_config()),
-        path => {
-            Box::new(chain_spec_uomi::ChainSpec::from_json_file(std::path::PathBuf::from(path))?)
-        },
+        path => Box::new(chain_spec_uomi::ChainSpec::from_json_file(
+            std::path::PathBuf::from(path),
+        )?),
     })
 }
 
@@ -83,7 +80,7 @@ impl SubstrateCli for Cli {
     }
 
     fn description() -> String {
-            "Uomi".into()
+        "Uomi".into()
     }
 
     fn author() -> String {
@@ -103,7 +100,6 @@ impl SubstrateCli for Cli {
     }
 }
 
-
 /// Parse command line arguments into service configuration.
 pub fn run() -> Result<()> {
     let cli = Cli::from_args();
@@ -114,97 +110,149 @@ pub fn run() -> Result<()> {
             runner.sync_run(|config| cmd.run(config.chain_spec, config.network))
         }
         Some(Subcommand::CheckBlock(cmd)) => {
-			let runner = cli.create_runner(cmd)?;
+            let runner = cli.create_runner(cmd)?;
             if runner.config().chain_spec.is_uomi() {
-			runner.async_run(|config| {
-				let PartialComponents { client, task_manager, import_queue, .. } =
-					uomi::new_partial(&config)?;
-				Ok((cmd.run(client, import_queue), task_manager))
-			})
+                runner.async_run(|config| {
+                    let PartialComponents {
+                        client,
+                        task_manager,
+                        import_queue,
+                        ..
+                    } = uomi::new_partial(&config)?;
+                    Ok((cmd.run(client, import_queue), task_manager))
+                })
             } else if runner.config().chain_spec.is_finney() {
                 runner.async_run(|config| {
-                    let PartialComponents { client, task_manager, import_queue, .. } =
-                        finney::new_partial(&config)?;
+                    let PartialComponents {
+                        client,
+                        task_manager,
+                        import_queue,
+                        ..
+                    } = finney::new_partial(&config)?;
                     Ok((cmd.run(client, import_queue), task_manager))
                 })
             } else {
                 runner.async_run(|config| {
-                    let PartialComponents { client, task_manager, import_queue, .. } =
-                        local::new_partial(&config)?;
+                    let PartialComponents {
+                        client,
+                        task_manager,
+                        import_queue,
+                        ..
+                    } = local::new_partial(&config)?;
                     Ok((cmd.run(client, import_queue), task_manager))
                 })
             }
-		},
+        }
         Some(Subcommand::ExportBlocks(cmd)) => {
-			let runner = cli.create_runner(cmd)?;
+            let runner = cli.create_runner(cmd)?;
             if runner.config().chain_spec.is_uomi() {
                 runner.async_run(|config| {
-                    let PartialComponents { client, task_manager, .. } = uomi::new_partial(&config)?;
+                    let PartialComponents {
+                        client,
+                        task_manager,
+                        ..
+                    } = uomi::new_partial(&config)?;
                     Ok((cmd.run(client, config.database), task_manager))
                 })
             } else if runner.config().chain_spec.is_finney() {
                 runner.async_run(|config| {
-                    let PartialComponents { client, task_manager, .. } = finney::new_partial(&config)?;
+                    let PartialComponents {
+                        client,
+                        task_manager,
+                        ..
+                    } = finney::new_partial(&config)?;
                     Ok((cmd.run(client, config.database), task_manager))
                 })
             } else {
                 runner.async_run(|config| {
-                    let PartialComponents { client, task_manager, .. } = local::new_partial(&config)?;
+                    let PartialComponents {
+                        client,
+                        task_manager,
+                        ..
+                    } = local::new_partial(&config)?;
                     Ok((cmd.run(client, config.database), task_manager))
                 })
             }
-		},
+        }
         Some(Subcommand::ExportState(cmd)) => {
-			let runner = cli.create_runner(cmd)?;
+            let runner = cli.create_runner(cmd)?;
             if runner.config().chain_spec.is_uomi() {
                 runner.async_run(|config| {
-                    let PartialComponents { client, task_manager, .. } = uomi::new_partial(&config)?;
+                    let PartialComponents {
+                        client,
+                        task_manager,
+                        ..
+                    } = uomi::new_partial(&config)?;
                     Ok((cmd.run(client, config.chain_spec), task_manager))
                 })
             } else if runner.config().chain_spec.is_finney() {
                 runner.async_run(|config| {
-                    let PartialComponents { client, task_manager, .. } = finney::new_partial(&config)?;
+                    let PartialComponents {
+                        client,
+                        task_manager,
+                        ..
+                    } = finney::new_partial(&config)?;
                     Ok((cmd.run(client, config.chain_spec), task_manager))
                 })
             } else {
                 runner.async_run(|config| {
-                    let PartialComponents { client, task_manager, .. } = local::new_partial(&config)?;
+                    let PartialComponents {
+                        client,
+                        task_manager,
+                        ..
+                    } = local::new_partial(&config)?;
                     Ok((cmd.run(client, config.chain_spec), task_manager))
                 })
             }
-		},
-		Some(Subcommand::ImportBlocks(cmd)) => {
-			let runner = cli.create_runner(cmd)?;
+        }
+        Some(Subcommand::ImportBlocks(cmd)) => {
+            let runner = cli.create_runner(cmd)?;
             if runner.config().chain_spec.is_uomi() {
                 runner.async_run(|config| {
-                    let PartialComponents { client, task_manager, import_queue, .. } =
-                        uomi::new_partial(&config)?;
+                    let PartialComponents {
+                        client,
+                        task_manager,
+                        import_queue,
+                        ..
+                    } = uomi::new_partial(&config)?;
                     Ok((cmd.run(client, import_queue), task_manager))
                 })
             } else if runner.config().chain_spec.is_finney() {
                 runner.async_run(|config| {
-                    let PartialComponents { client, task_manager, import_queue, .. } =
-                        finney::new_partial(&config)?;
+                    let PartialComponents {
+                        client,
+                        task_manager,
+                        import_queue,
+                        ..
+                    } = finney::new_partial(&config)?;
                     Ok((cmd.run(client, import_queue), task_manager))
                 })
             } else {
                 runner.async_run(|config| {
-                    let PartialComponents { client, task_manager, import_queue, .. } =
-                        local::new_partial(&config)?;
+                    let PartialComponents {
+                        client,
+                        task_manager,
+                        import_queue,
+                        ..
+                    } = local::new_partial(&config)?;
                     Ok((cmd.run(client, import_queue), task_manager))
                 })
             }
-		},
-		Some(Subcommand::PurgeChain(cmd)) => {
+        }
+        Some(Subcommand::PurgeChain(cmd)) => {
             let runner = cli.create_runner(cmd)?;
             runner.sync_run(|config| cmd.run(config.database))
-		},
+        }
         Some(Subcommand::Revert(cmd)) => {
-			let runner = cli.create_runner(cmd)?;
+            let runner = cli.create_runner(cmd)?;
             if runner.config().chain_spec.is_uomi() {
                 runner.async_run(|config| {
-                    let PartialComponents { client, task_manager, backend, .. } =
-                        uomi::new_partial(&config)?;
+                    let PartialComponents {
+                        client,
+                        task_manager,
+                        backend,
+                        ..
+                    } = uomi::new_partial(&config)?;
                     let aux_revert = Box::new(|client, _, blocks| {
                         sc_consensus_grandpa::revert(client, blocks)?;
                         Ok(())
@@ -213,8 +261,12 @@ pub fn run() -> Result<()> {
                 })
             } else if runner.config().chain_spec.is_finney() {
                 runner.async_run(|config| {
-                    let PartialComponents { client, task_manager, backend, .. } =
-                        finney::new_partial(&config)?;
+                    let PartialComponents {
+                        client,
+                        task_manager,
+                        backend,
+                        ..
+                    } = finney::new_partial(&config)?;
                     let aux_revert = Box::new(|client, _, blocks| {
                         sc_consensus_grandpa::revert(client, blocks)?;
                         Ok(())
@@ -223,8 +275,12 @@ pub fn run() -> Result<()> {
                 })
             } else {
                 runner.async_run(|config| {
-                    let PartialComponents { client, task_manager, backend, .. } =
-                        local::new_partial(&config)?;
+                    let PartialComponents {
+                        client,
+                        task_manager,
+                        backend,
+                        ..
+                    } = local::new_partial(&config)?;
                     let aux_revert = Box::new(|client, _, blocks| {
                         sc_consensus_grandpa::revert(client, blocks)?;
                         Ok(())
@@ -232,8 +288,7 @@ pub fn run() -> Result<()> {
                     Ok((cmd.run(client, backend, Some(aux_revert)), task_manager))
                 })
             }
-			
-		},
+        }
         Some(Subcommand::Key(cmd)) => cmd.run(&cli),
         Some(Subcommand::Sign(cmd)) => cmd.run(),
         Some(Subcommand::Verify(cmd)) => cmd.run(),
@@ -250,9 +305,7 @@ pub fn run() -> Result<()> {
                 BenchmarkCmd::Pallet(cmd) => {
                     if chain_spec.is_uomi() {
                         runner.sync_run(|config| {
-                            cmd.run::<HashingFor<uomi_runtime::Block>, uomi::HostFunctions>(
-                                config,
-                            )
+                            cmd.run::<HashingFor<uomi_runtime::Block>, uomi::HostFunctions>(config)
                         })
                     } else if chain_spec.is_finney() {
                         runner.sync_run(|config| {
@@ -269,8 +322,7 @@ pub fn run() -> Result<()> {
                     }
                 }
                 BenchmarkCmd::Block(cmd) => {
-
-                    if chain_spec.is_uomi() {    
+                    if chain_spec.is_uomi() {
                         runner.sync_run(|config| {
                             let params = uomi::new_partial(&config)?;
                             cmd.run(params.client)
@@ -286,10 +338,8 @@ pub fn run() -> Result<()> {
                             cmd.run(params.client)
                         })
                     }
-                    
                 }
                 BenchmarkCmd::Storage(cmd) => {
-
                     if chain_spec.is_uomi() {
                         runner.sync_run(|config| {
                             let params = uomi::new_partial(&config)?;
@@ -315,7 +365,6 @@ pub fn run() -> Result<()> {
                             cmd.run(config, params.client, db, storage)
                         })
                     }
-                    
                 }
                 BenchmarkCmd::Overhead(cmd) => {
                     if chain_spec.is_uomi() {
@@ -421,7 +470,6 @@ pub fn run() -> Result<()> {
                             cmd.run(params.client, inherent_data, Vec::new(), &ext_factory)
                         })
                     }
-                    
                 }
                 BenchmarkCmd::Machine(cmd) => {
                     runner.sync_run(|config| cmd.run(&config, SUBSTRATE_REFERENCE_HARDWARE.clone()))
@@ -435,7 +483,6 @@ pub fn run() -> Result<()> {
             .into()),
         None => {
             let runner = cli.create_runner(&cli.run)?;
-      
 
             #[cfg(feature = "evm-tracing")]
             let evm_tracing_config = crate::evm_tracing_types::EvmTracingConfig {
@@ -452,16 +499,28 @@ pub fn run() -> Result<()> {
             runner.run_node_until_exit(|config| async move {
                 log::info!("🧠 Uomi engine active, starting to process requests");
                 if config.chain_spec.is_uomi() {
-                    return uomi::start_node(config, #[cfg(feature = "evm-tracing")] evm_tracing_config).map_err(Into::into);
+                    return uomi::start_node(
+                        config,
+                        #[cfg(feature = "evm-tracing")]
+                        evm_tracing_config,
+                    )
+                    .map_err(Into::into);
                 } else if config.chain_spec.is_finney() {
-                    return finney::start_node(config, #[cfg(feature = "evm-tracing")] evm_tracing_config).map_err(Into::into);
+                    return finney::start_node(
+                        config,
+                        #[cfg(feature = "evm-tracing")]
+                        evm_tracing_config,
+                    )
+                    .map_err(Into::into);
                 } else {
-                    return local::start_node(config, #[cfg(feature = "evm-tracing")] evm_tracing_config).map_err(Into::into);
+                    return local::start_node(
+                        config,
+                        #[cfg(feature = "evm-tracing")]
+                        evm_tracing_config,
+                    )
+                    .map_err(Into::into);
                 }
-
             })
-        },
+        }
     }
-    
 }
-

@@ -22,7 +22,6 @@
 //!
 //! These core Uomi types are used by the Uomi, finney and Local runtime.
 
-
 /// EVM primitives.
 pub mod evm;
 

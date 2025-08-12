@@ -1,4 +1,4 @@
-use crate::{ types::Cid, Config, NodesPins };
+use crate::{types::Cid, Config, NodesPins};
 use sp_runtime::DispatchResult;
 
 pub fn add_node_pin<T: Config>(cid: &Cid, node_id: &T::AccountId) -> DispatchResult {

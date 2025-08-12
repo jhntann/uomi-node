@@ -13,57 +13,40 @@ pub use pallet::*;
 
 use frame_support::pallet_prelude::DispatchClass;
 
-use sp_std::{ vec, vec::Vec };
 use core::fmt::Debug;
 use frame_support::{
-    inherent::{ InherentData, InherentIdentifier, IsFatalError, ProvideInherent },
-    parameter_types,
+    inherent::{InherentData, InherentIdentifier, IsFatalError, ProvideInherent},
     pallet_prelude::{
-        ensure,
-        Decode,
-        Encode,
-        Get,
-        IsType,
-        MaxEncodedLen,
-        OptionQuery,
-        RuntimeDebug,
-        StorageDoubleMap,
-        StorageMap,
-        TypeInfo,
-        ValueQuery,
-        DispatchResultWithPostInfo,
+        ensure, Decode, DispatchResultWithPostInfo, Encode, Get, IsType, MaxEncodedLen,
+        OptionQuery, RuntimeDebug, StorageDoubleMap, StorageMap, TypeInfo, ValueQuery,
     },
-    Blake2_128Concat,
+    parameter_types,
     storage::types::StorageValue,
-    traits::{
-        fungible::{Mutate as FungibleMutate},
-    },
+    traits::fungible::Mutate as FungibleMutate,
+    Blake2_128Concat,
 };
-use sp_runtime::traits::Convert;
-use uomi_primitives::Balance;
-use sp_runtime::traits::AtLeast32BitUnsigned;
 use frame_system::{
     ensure_none,
     offchain::{
-        AppCrypto,
-        CreateSignedTransaction,
-        SendUnsignedTransaction,
-        SignedPayload,
-        Signer,
+        AppCrypto, CreateSignedTransaction, SendUnsignedTransaction, SignedPayload, Signer,
         SigningTypes,
     },
     pallet_prelude::OriginFor,
 };
 use sp_core::offchain::KeyTypeId;
 use sp_core::U256;
-use sp_runtime::traits::{ IdentifyAccount, Saturating, UniqueSaturatedInto };
-use sp_runtime::{ DispatchError, DispatchResult };
+use sp_runtime::traits::AtLeast32BitUnsigned;
+use sp_runtime::traits::Convert;
+use sp_runtime::traits::{IdentifyAccount, Saturating, UniqueSaturatedInto};
+use sp_runtime::{DispatchError, DispatchResult};
 use sp_std::marker::PhantomData;
+use sp_std::{vec, vec::Vec};
+use uomi_primitives::Balance;
 
 // PALLET CRATES
 use pallet_staking::Validators;
-use storages::{ add_node_pin, remove_node_pin };
-use types::{ BlockNumber, Cid, NftId, ExpirationBlockNumber, UsableFromBlockNumber };
+use storages::{add_node_pin, remove_node_pin};
+use types::{BlockNumber, Cid, ExpirationBlockNumber, NftId, UsableFromBlockNumber};
 
 extern crate alloc;
 use alloc::collections::BTreeSet;
@@ -75,10 +58,10 @@ pub const CRYPTO_KEY_TYPE: KeyTypeId = KeyTypeId(*b"ipfs");
 //////////////////////////////////////////////////////////////////////////////////
 pub mod crypto {
     use crate::CRYPTO_KEY_TYPE;
-    use sp_core::sr25519::Signature as Sr25519Signature;
-    use sp_runtime::app_crypto::{ app_crypto, sr25519 };
-    use sp_runtime::{ traits::Verify, MultiSignature, MultiSigner };
     use alloc::string::String;
+    use sp_core::sr25519::Signature as Sr25519Signature;
+    use sp_runtime::app_crypto::{app_crypto, sr25519};
+    use sp_runtime::{traits::Verify, MultiSignature, MultiSigner};
 
     app_crypto!(sr25519, CRYPTO_KEY_TYPE);
 
@@ -93,7 +76,8 @@ pub mod crypto {
 
     // implemented for mock runtime in test
     impl frame_system::offchain::AppCrypto<<Sr25519Signature as Verify>::Signer, Sr25519Signature>
-    for AuthId {
+        for AuthId
+    {
         type RuntimeAppPublic = Public;
         type GenericSignature = sp_core::sr25519::Signature;
         type GenericPublic = sp_core::sr25519::Public;
@@ -136,10 +120,7 @@ impl<T: SigningTypes + Config> SignedPayload<T> for PinPayload<T::Public> {
 pub mod pallet {
     use frame_support::{
         pallet_prelude::{
-            InvalidTransaction,
-            TransactionPriority,
-            TransactionSource,
-            TransactionValidity,
+            InvalidTransaction, TransactionPriority, TransactionSource, TransactionValidity,
             ValidTransaction,
         },
         traits::Hooks,
@@ -156,11 +137,12 @@ pub mod pallet {
     }
 
     #[pallet::config]
-    pub trait Config: frame_system::Config +
-        pallet_staking::Config +
-        pallet_session::Config +
-        CreateSignedTransaction<Call<Self>> +
-        Debug
+    pub trait Config:
+        frame_system::Config
+        + pallet_staking::Config
+        + pallet_session::Config
+        + CreateSignedTransaction<Call<Self>>
+        + Debug
     {
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
         #[pallet::constant]
@@ -181,7 +163,8 @@ pub mod pallet {
             operation: IpfsOperation,
             cid: Vec<u8>,
         },
-        IpfsOperationFailure { // TODO: Non lo stiamo usando, sarebbe da capire dove ha senso usarlo
+        IpfsOperationFailure {
+            // TODO: Non lo stiamo usando, sarebbe da capire dove ha senso usarlo
             operation: IpfsOperation,
             error: Vec<u8>,
         },
@@ -217,7 +200,7 @@ pub mod pallet {
         Blake2_128Concat,
         T::AccountId,
         bool,
-        OptionQuery
+        OptionQuery,
     >;
 
     #[pallet::storage]
@@ -232,7 +215,7 @@ pub mod pallet {
         Blake2_128Concat,
         Cid,
         (ExpirationBlockNumber, UsableFromBlockNumber),
-        ValueQuery
+        ValueQuery,
     >;
 
     #[pallet::pallet]
@@ -254,7 +237,10 @@ pub mod pallet {
         fn on_finalize(_: BlockNumber<T>) {
             // Be sure that the InherentDidUpdate is set to true and reset it to false.
             // This is required to be sure that the inherent function is executed once in the block.
-            assert!(InherentDidUpdate::<T>::take(), "IPFS: inherent must be updated once in the block");
+            assert!(
+                InherentDidUpdate::<T>::take(),
+                "IPFS: inherent must be updated once in the block"
+            );
         }
     }
 
@@ -267,20 +253,20 @@ pub mod pallet {
 
             match call {
                 // Handle inherent extrinsics
-                Call::set_inherent_data { .. } => {
-                    ValidTransaction::with_tag_prefix("IpfsPallet")
-                        .priority(TransactionPriority::MAX)
-                        .and_provides(INHERENT_IDENTIFIER)
-                        .longevity(64)
-                        .propagate(true)
-                        .build()
-                }
+                Call::set_inherent_data { .. } => ValidTransaction::with_tag_prefix("IpfsPallet")
+                    .priority(TransactionPriority::MAX)
+                    .and_provides(INHERENT_IDENTIFIER)
+                    .longevity(64)
+                    .propagate(true)
+                    .build(),
                 // Handle existing submit_processed_pins validation
                 Call::submit_processed_pins { .. } => {
                     // Existing validation for submit_processed_pins
-                    if source == TransactionSource::External && current_block_number < 510000.into() {  // NOTE: This code is used to maintain the retro-compatibility with old blocks on finney network
+                    if source == TransactionSource::External && current_block_number < 510000.into()
+                    {
+                        // NOTE: This code is used to maintain the retro-compatibility with old blocks on finney network
                         log::info!("IPFS: Rejecting submit_processed_pins unsigned transaction from external origin");
-                        return InvalidTransaction::BadSigner.into()
+                        return InvalidTransaction::BadSigner.into();
                     }
 
                     ValidTransaction::with_tag_prefix("IpfsPallet")
@@ -314,7 +300,10 @@ pub mod pallet {
                 }
 
                 log::info!("IPFS: Agent already pinned, cid is different");
-                log::info!("IPFS: Current block number: {:?}", frame_system::Pallet::<T>::block_number());
+                log::info!(
+                    "IPFS: Current block number: {:?}",
+                    frame_system::Pallet::<T>::block_number()
+                );
                 log::info!("IPFS: MinExpireDuration: {:?}", MinExpireDuration::get());
 
                 CidsStatus::<T>::mutate(&existing_cid, |(expires_at, _usable_from)| {
@@ -336,7 +325,10 @@ pub mod pallet {
 
             AgentsPins::<T>::insert(nft_id, &cid);
             CidsStatus::<T>::insert(&cid, (U256::zero(), U256::zero()));
-            log::info!("IPFS: CID status after insert: {:?}", CidsStatus::<T>::get(&cid));
+            log::info!(
+                "IPFS: CID status after insert: {:?}",
+                CidsStatus::<T>::get(&cid)
+            );
 
             Self::deposit_event(Event::IpfsOperationSuccess {
                 operation: IpfsOperation::Pin,
@@ -351,7 +343,7 @@ pub mod pallet {
         pub fn pin_file(
             origin: OriginFor<T>,
             cid: Cid,
-            duration: BlockNumber<T>
+            duration: BlockNumber<T>,
         ) -> DispatchResult {
             let _who = ensure_signed(origin)?;
 
@@ -361,7 +353,10 @@ pub mod pallet {
             ensure!(!cid.is_empty(), "CID cannot be empty");
 
             //check if duration is more than 28800 (number of blocks in a day)
-            ensure!(duration >= min_duration, "Duration must be more than 28800 blocks");
+            ensure!(
+                duration >= min_duration,
+                "Duration must be more than 28800 blocks"
+            );
 
             let current_block = frame_system::Pallet::<T>::block_number();
             let new_expires_at = current_block.saturating_add(duration);
@@ -391,7 +386,7 @@ pub mod pallet {
         pub fn submit_processed_pins(
             origin: OriginFor<T>,
             payload: PinPayload<T::Public>,
-            _signature: T::Signature
+            _signature: T::Signature,
         ) -> DispatchResult {
             let _who = ensure_none(origin)?;
 
@@ -429,7 +424,7 @@ pub mod pallet {
             operations: (
                 Vec<(Cid, (ExpirationBlockNumber, UsableFromBlockNumber))>,
                 Vec<(Cid, (ExpirationBlockNumber, UsableFromBlockNumber))>,
-            )
+            ),
         ) -> DispatchResultWithPostInfo {
             log::info!("IPFS: Inherent data called");
 
@@ -473,19 +468,20 @@ pub mod pallet {
 
         fn create_inherent(_data: &InherentData) -> Option<Self::Call> {
             let current_block_number = frame_system::Pallet::<T>::block_number().into();
-            log::info!("IPFS: Creating inherent data for block number: {:?}", current_block_number);
+            log::info!(
+                "IPFS: Creating inherent data for block number: {:?}",
+                current_block_number
+            );
 
             let operations = match Self::ipfs_operations(current_block_number) {
-                Ok(operations) => { operations }
+                Ok(operations) => operations,
                 Err(error) => {
                     log::info!("IPFS: Failed to run ipfs_operations. error: {:?}", error);
                     return None;
                 }
             };
 
-            Some(Call::set_inherent_data {
-                operations,
-            })
+            Some(Call::set_inherent_data { operations })
         }
 
         fn is_inherent(call: &Self::Call) -> bool {
@@ -495,12 +491,15 @@ pub mod pallet {
         fn check_inherent(call: &Self::Call, _data: &InherentData) -> Result<(), Self::Error> {
             let current_block_number = frame_system::Pallet::<T>::block_number().into();
             let expected_block_number = current_block_number + 1;
-            log::info!("IPFS: Checking inherent data for block number: {:?}", expected_block_number);
+            log::info!(
+                "IPFS: Checking inherent data for block number: {:?}",
+                expected_block_number
+            );
 
             match call {
                 Call::set_inherent_data { operations } => {
                     let expected_operations = match Self::ipfs_operations(expected_block_number) {
-                        Ok(operations) => { operations }
+                        Ok(operations) => operations,
                         Err(error) => {
                             log::info!("IPFS: Failed to run ipfs_operations. error: {:?}", error);
                             return Err(InherentError::InvalidInherentValue);
@@ -514,10 +513,8 @@ pub mod pallet {
                         return Err(InherentError::InvalidInherentValue);
                     }
                     for (cid, (expires_at, usable_from)) in usable.iter() {
-                        if
-                            !expected_usable.contains(
-                                &(cid.clone(), (expires_at.clone(), usable_from.clone()))
-                            )
+                        if !expected_usable
+                            .contains(&(cid.clone(), (expires_at.clone(), usable_from.clone())))
                         {
                             return Err(InherentError::InvalidInherentValue);
                         }
@@ -528,10 +525,8 @@ pub mod pallet {
                         return Err(InherentError::InvalidInherentValue);
                     }
                     for (cid, (expires_at, usable_from)) in to_remove.iter() {
-                        if
-                            !expected_to_remove.contains(
-                                &(cid.clone(), (expires_at.clone(), usable_from.clone()))
-                            )
+                        if !expected_to_remove
+                            .contains(&(cid.clone(), (expires_at.clone(), usable_from.clone())))
                         {
                             return Err(InherentError::InvalidInherentValue);
                         }
@@ -587,7 +582,7 @@ pub mod pallet {
 
         fn call_process_pins(
             to_save: Vec<(Cid, (ExpirationBlockNumber, UsableFromBlockNumber))>,
-            to_remove: Vec<(Cid, (ExpirationBlockNumber, UsableFromBlockNumber))>
+            to_remove: Vec<(Cid, (ExpirationBlockNumber, UsableFromBlockNumber))>,
         ) -> Result<(), DispatchError> {
             let signer = Signer::<T, T::AuthorityId>::all_accounts();
 
@@ -597,8 +592,12 @@ pub mod pallet {
             }
 
             if !Self::is_active_validator(&Self::get_account_id()?) {
-                log::error!("IPFS: Only validators can call submit_processed_pins, skip call_process_pins");
-                return Err(DispatchError::Other("IPFS: Only validators can call submit_processed_pins, skip call_process_pins"));
+                log::error!(
+                    "IPFS: Only validators can call submit_processed_pins, skip call_process_pins"
+                );
+                return Err(DispatchError::Other(
+                    "IPFS: Only validators can call submit_processed_pins, skip call_process_pins",
+                ));
             }
 
             //send unsigned transaction with signed payload
@@ -608,7 +607,7 @@ pub mod pallet {
                     to_remove: to_remove.clone(),
                     public: acct.public.clone(),
                 },
-                |payload, signature| Call::submit_processed_pins { payload, signature }
+                |payload, signature| Call::submit_processed_pins { payload, signature },
             );
 
             Ok(())
@@ -618,7 +617,7 @@ pub mod pallet {
             cid: Cid,
             public: &T::AccountId,
             config: (ExpirationBlockNumber, UsableFromBlockNumber),
-            to_save: &mut Vec<(Cid, (ExpirationBlockNumber, UsableFromBlockNumber))>
+            to_save: &mut Vec<(Cid, (ExpirationBlockNumber, UsableFromBlockNumber))>,
         ) -> Result<(), DispatchError> {
             let (expiry, _usable_from) = config;
             let current_block = frame_system::Pallet::<T>::block_number();
@@ -636,7 +635,7 @@ pub mod pallet {
                     return Ok(());
                 }
                 match Self::offchain_pin_file(cid.clone()) {
-                    Ok(_) => { 
+                    Ok(_) => {
                         to_save.push((cid, config));
                     }
                     Err(e) => {
@@ -652,7 +651,7 @@ pub mod pallet {
             cid: Cid,
             public: &T::AccountId,
             config: (ExpirationBlockNumber, UsableFromBlockNumber),
-            to_remove: &mut Vec<(Cid, (ExpirationBlockNumber, UsableFromBlockNumber))>
+            to_remove: &mut Vec<(Cid, (ExpirationBlockNumber, UsableFromBlockNumber))>,
         ) -> Result<(), DispatchError> {
             //check nodespins, check if someone has pinned some file that are not in cidstatus, if so unpin it
             if NodesPins::<T>::contains_key(&cid.clone(), public) {
@@ -674,18 +673,17 @@ pub mod pallet {
         }
 
         fn ipfs_operations(
-            current_block: U256
+            current_block: U256,
         ) -> Result<
             (
                 Vec<(Cid, (ExpirationBlockNumber, UsableFromBlockNumber))>,
                 Vec<(Cid, (ExpirationBlockNumber, UsableFromBlockNumber))>,
             ),
-            DispatchError
+            DispatchError,
         > {
             let mut usable: Vec<(Cid, (ExpirationBlockNumber, UsableFromBlockNumber))> = Vec::new();
-            let mut to_remove: Vec<
-                (Cid, (ExpirationBlockNumber, UsableFromBlockNumber))
-            > = Vec::new();
+            let mut to_remove: Vec<(Cid, (ExpirationBlockNumber, UsableFromBlockNumber))> =
+                Vec::new();
 
             //check cids in cidstatus that has expired (avoiding the ones that are persistent with 0 expiry)
             for (cid, (expires_at, usable_from)) in CidsStatus::<T>::iter() {
@@ -705,12 +703,10 @@ pub mod pallet {
         }
 
         fn process_pins() -> Result<(), DispatchError> {
-            let mut to_save: Vec<
-                (Cid, (ExpirationBlockNumber, UsableFromBlockNumber))
-            > = Vec::new();
-            let mut to_remove: Vec<
-                (Cid, (ExpirationBlockNumber, UsableFromBlockNumber))
-            > = Vec::new();
+            let mut to_save: Vec<(Cid, (ExpirationBlockNumber, UsableFromBlockNumber))> =
+                Vec::new();
+            let mut to_remove: Vec<(Cid, (ExpirationBlockNumber, UsableFromBlockNumber))> =
+                Vec::new();
 
             let public = Self::get_account_id()?;
 
@@ -755,7 +751,7 @@ pub mod pallet {
         }
 
         pub fn get_cid_status(
-            cid: &Cid
+            cid: &Cid,
         ) -> Result<(ExpirationBlockNumber, UsableFromBlockNumber), DispatchError> {
             let status = CidsStatus::<T>::get(cid);
             Ok(status)
@@ -795,10 +791,7 @@ pub mod pallet {
 
         pub fn is_majority_pinned(cid: &Cid) -> bool {
             // Get all validators
-            let validators = Validators::<T>
-                ::iter()
-                .map(|(v, _)| v)
-                .collect::<Vec<_>>();
+            let validators = Validators::<T>::iter().map(|(v, _)| v).collect::<Vec<_>>();
 
             // If no validators, return false
             if validators.is_empty() {
@@ -808,13 +801,13 @@ pub mod pallet {
             // Calculate required majority (50% + 1)
             let total_validators = validators.len();
             let mut required_majority = total_validators / 2 + 1;
-            if total_validators <= 3 { // small chain probably is a local testnet
+            if total_validators <= 3 {
+                // small chain probably is a local testnet
                 required_majority = 1;
             }
 
             // Get all validators who pinned this CID
-            let pinned_validators: BTreeSet<_> = NodesPins::<T>
-                ::iter_prefix(cid)
+            let pinned_validators: BTreeSet<_> = NodesPins::<T>::iter_prefix(cid)
                 .map(|(validator, _)| validator)
                 .collect();
 

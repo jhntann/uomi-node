@@ -18,9 +18,9 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use uomi_primitives::evm::{EvmAddress, UnifiedAddressMapper};
 use core::marker::PhantomData;
 use sp_runtime::DispatchError;
+use uomi_primitives::evm::{EvmAddress, UnifiedAddressMapper};
 
 use frame_support::DefaultNoBound;
 use pallet_contracts::chain_extension::{

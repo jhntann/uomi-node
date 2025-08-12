@@ -30,7 +30,7 @@ where
         attr.path
             .segments
             .first()
-            .map_or(false, |segment| segment.ident == "precompile")
+            .is_some_and(false, |segment| segment.ident == "precompile")
     };
 
     while let Some(index) = attributes.iter().position(pred) {
@@ -108,7 +108,7 @@ impl syn::parse::Parse for MethodAttr {
 
 /// Attributes for the main impl Block.
 pub enum ImplAttr {
-    PrecompileSet(Span),
+    PrecompileSet(()),
     TestConcreteTypes(Span, Vec<syn::Type>),
 }
 

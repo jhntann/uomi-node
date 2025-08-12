@@ -1,6 +1,6 @@
-use sp_core::{U256, H160};
-use sp_runtime::BoundedVec;
 use crate::MaxDataSize;
+use sp_core::{H160, U256};
+use sp_runtime::BoundedVec;
 
 pub type Version = u32;
 pub type AiModelKey = U256;

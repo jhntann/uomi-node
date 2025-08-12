@@ -18,12 +18,12 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use uomi_primitives::evm::{UnifiedAddress, UnifiedAddressMapper};
 use core::marker::PhantomData;
 use fp_evm::PrecompileHandle;
 use frame_support::traits::IsType;
 use precompile_utils::prelude::*;
 use sp_core::{crypto::AccountId32, H256};
+use uomi_primitives::evm::{UnifiedAddress, UnifiedAddressMapper};
 
 #[cfg(test)]
 mod mock;

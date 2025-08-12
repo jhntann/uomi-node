@@ -16,7 +16,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Uomi. If not, see <http://www.gnu.org/licenses/>.
 
-use uomi_primitives::{AccountId, Balance, Block};
 use parity_scale_codec::Encode;
 use polkadot_runtime_common::BlockHashCount;
 use sc_executor::NativeElseWasmExecutor;
@@ -26,6 +25,7 @@ use sp_core::{Pair, H256};
 use sp_keyring::Sr25519Keyring;
 use sp_runtime::OpaqueExtrinsic;
 use std::sync::Arc;
+use uomi_primitives::{AccountId, Balance, Block};
 
 /// Generates `System::Remark` extrinsics for the benchmarks.
 ///
@@ -265,7 +265,7 @@ where
 {
     fn existential_deposit(&self) -> Balance {
         with_runtime! {
-          
+
             runtime::ExistentialDeposit::get()
         }
     }
@@ -294,9 +294,8 @@ macro_rules! with_runtime {
                 #[allow(unused_imports)]
 				use local_runtime as runtime;
 				$code
-           
+
 	}
 }
-
 
 use with_runtime;

@@ -1,15 +1,9 @@
 use codec::{Decode, Encode};
-use frame_support::{
-   BoundedVec,
-   pallet_prelude::RuntimeDebug,
-};
+use frame_support::{pallet_prelude::RuntimeDebug, BoundedVec};
 use frame_system::offchain::{SignedPayload, SigningTypes};
 use sp_core::U256;
 
-use crate::{
-   MaxDataSize,
-   types::Version,
-};
+use crate::{types::Version, MaxDataSize};
 
 // PayloadNodesOutputs
 
@@ -20,7 +14,7 @@ pub struct PayloadNodesOutputs<Public> {
     pub public: Public,
 }
 
-impl <T: SigningTypes> SignedPayload<T> for PayloadNodesOutputs<T::Public> {
+impl<T: SigningTypes> SignedPayload<T> for PayloadNodesOutputs<T::Public> {
     fn public(&self) -> T::Public {
         self.public.clone()
     }
@@ -34,7 +28,7 @@ pub struct PayloadNodesVersions<Public> {
     pub public: Public,
 }
 
-impl <T: SigningTypes> SignedPayload<T> for PayloadNodesVersions<T::Public> {
+impl<T: SigningTypes> SignedPayload<T> for PayloadNodesVersions<T::Public> {
     fn public(&self) -> T::Public {
         self.public.clone()
     }
@@ -50,7 +44,7 @@ pub struct PayloadNodesOpocL0Inferences<Public> {
     pub public: Public,
 }
 
-impl <T: SigningTypes> SignedPayload<T> for PayloadNodesOpocL0Inferences<T::Public> {
+impl<T: SigningTypes> SignedPayload<T> for PayloadNodesOpocL0Inferences<T::Public> {
     fn public(&self) -> T::Public {
         self.public.clone()
     }

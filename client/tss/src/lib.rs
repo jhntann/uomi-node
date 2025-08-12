@@ -11,7 +11,11 @@ use std::{
     num::TryFromIntError,
     pin::Pin,
     sync::{Arc, Mutex, MutexGuard},
-    task::{Context, Poll}, thread::sleep, time::Duration, u16, time::Instant,
+    task::{Context, Poll},
+    thread::sleep,
+    time::Duration,
+    time::Instant,
+    u16,
 };
 
 use dkghelpers::{FileStorage, MemoryStorage, Storage, StorageType};
@@ -34,7 +38,9 @@ use sp_core::{sr25519, ByteArray};
 
 use sc_client_api::BlockchainEvents;
 use sc_network::{
-    config::{self, NonDefaultSetConfig, SetConfig}, utils::interval, NetworkSigner, NetworkStateInfo, NotificationService, PeerId, ProtocolName
+    config::{self, NonDefaultSetConfig, SetConfig},
+    utils::interval,
+    NetworkSigner, NetworkStateInfo, NotificationService, PeerId, ProtocolName,
 };
 use sc_network_gossip::{
     GossipEngine, Network, Syncing, TopicNotification, ValidationResult, Validator,
@@ -66,12 +72,11 @@ mod dkground2;
 mod dkground3;
 mod ecdsa;
 mod signlib;
-mod types;
 #[cfg(test)]
 mod test_framework;
 #[cfg(test)]
 mod test_framework_multi_node;
-
+mod types;
 
 const TSS_PROTOCOL: &str = "/tss/1";
 
@@ -153,7 +158,13 @@ pub enum SessionManagerMessage {
 #[derive(Encode, Decode, Debug)]
 pub enum TSSRuntimeEvent {
     DKGSessionInfoReady(SessionId, u16, u16, Vec<TSSParticipant>), // Session info from runtime is now available
-    DKGReshareSessionInfoReady(SessionId, u16, u16, Vec<TSSParticipant>, Vec<TSSParticipant>), // Session info from runtime is now available
+    DKGReshareSessionInfoReady(
+        SessionId,
+        u16,
+        u16,
+        Vec<TSSParticipant>,
+        Vec<TSSParticipant>,
+    ), // Session info from runtime is now available
     SigningSessionInfoReady(
         SessionId,
         u16,
@@ -162,7 +173,7 @@ pub enum TSSRuntimeEvent {
         TSSParticipant,
         Vec<u8>,
     ), // Session info from runtime is now available
-    ValidatorIdAssigned(TSSParticipant, u32)
+    ValidatorIdAssigned(TSSParticipant, u32),
 }
 
 struct TssValidator {
@@ -210,7 +221,10 @@ impl<B: BlockT> Validator<B> for TssValidator {
         let mut sent_announcements = self.sent_announcements.lock().unwrap();
 
         if sent_announcements.contains_key(who) {
-            log::info!("[TSS]: Already sent announcement to peer {}", who.to_base58());
+            log::info!(
+                "[TSS]: Already sent announcement to peer {}",
+                who.to_base58()
+            );
             return;
         }
 
@@ -218,7 +232,7 @@ impl<B: BlockT> Validator<B> for TssValidator {
         sent_announcements.insert(who.clone(), Instant::now());
         drop(sent_announcements);
 
-        // In this way willing or not we announced ourselves to the peer. 
+        // In this way willing or not we announced ourselves to the peer.
         if let Some(announcement) = &self.announcement {
             match announcement {
                 TssMessage::Announce(_nonce, peer_id, pubkey, sig) => {
@@ -249,18 +263,17 @@ impl<B: BlockT> Validator<B> for TssValidator {
 
         // Safely modify the processed messages
         let mut processed_messages = self.processed_messages.lock().unwrap();
-                
+
         // Mark the message as processed
         processed_messages.insert(data.to_vec(), Instant::now());
-        
+
         // Cleanup can happen here or in a background task
         let now = Instant::now();
-        processed_messages.retain(|_, timestamp| {
-            now.duration_since(*timestamp) < self.message_expiry
-        });
-        
+        processed_messages
+            .retain(|_, timestamp| now.duration_since(*timestamp) < self.message_expiry);
+
         let topic = <<B::Header as HeaderT>::Hashing as HashT>::hash("tss_topic".as_bytes());
-        
+
         ValidationResult::ProcessAndKeep(topic)
     }
 
@@ -274,8 +287,11 @@ impl<B: BlockT> Validator<B> for TssValidator {
         })
     }
     fn message_allowed<'a>(
-            &'a self,
-        ) -> Box<dyn FnMut(&PeerId, sc_network_gossip::MessageIntent, &<B as BlockT>::Hash, &[u8]) -> bool + 'a> {
+        &'a self,
+    ) -> Box<
+        dyn FnMut(&PeerId, sc_network_gossip::MessageIntent, &<B as BlockT>::Hash, &[u8]) -> bool
+            + 'a,
+    > {
         Box::new(move |_peer_id, _intent, _topic, data| {
             // The messages are always allowed, but we need to store what data we send out
             // to avoid sending the same message multiple times
@@ -284,7 +300,7 @@ impl<B: BlockT> Validator<B> for TssValidator {
             processed_messages.insert(data.to_vec(), Instant::now());
 
             return true;
-        })  
+        })
     }
 }
 
@@ -307,7 +323,7 @@ impl PeerMapper {
             validator_ids: Arc::new(Mutex::new(HashMap::new())),
         }
     }
-    
+
     pub fn _get_account_id_from_peer_id(&mut self, peer_id: &PeerId) -> Option<&TSSPublic> {
         self.peers.get(peer_id)
     }
@@ -415,13 +431,13 @@ impl PeerMapper {
     ) -> Option<Identifier> {
         // First try to get the validator ID
         let validator_id = self.get_validator_id(account_id);
-        
+
         if let Some(id) = validator_id {
             // If we have a validator ID, convert it to Identifier
             let identifier: Identifier = u16::try_from(id).unwrap_or(u16::MAX).try_into().unwrap();
             return Some(identifier);
         }
-        
+
         // If no validator ID is found, fall back to the original method
         let handle = self.sessions_participants.lock().unwrap();
         let session = handle.get(session_id);
@@ -461,18 +477,25 @@ impl PeerMapper {
 
         for (index, val) in participants.iter().enumerate() {
             // Try to get validator ID for this participant
-            let validator_id = self.get_validator_id(&val.to_vec())
+            let validator_id = self
+                .get_validator_id(&val.to_vec())
                 .unwrap_or_else(|| (index + 1) as u32); // Fall back to index+1 if no validator ID
-            
+
             // Convert validator_id to Identifier
-            
-            let identifier: Identifier = u16::try_from(validator_id).unwrap_or_default().try_into().unwrap();
- 
-            
+
+            let identifier: Identifier = u16::try_from(validator_id)
+                .unwrap_or_default()
+                .try_into()
+                .unwrap();
+
             entry_sessions_participants.insert(identifier, val.to_vec());
             entry_sessions_participants_u16.insert(u16::try_from(index + 1).unwrap(), val.to_vec());
-            
-            log::info!("[TSS] Added participant with validator ID {} to session {}", validator_id, session_id);
+
+            log::info!(
+                "[TSS] Added participant with validator ID {} to session {}",
+                validator_id,
+                session_id
+            );
         }
 
         drop(sessions_participants_u16);
@@ -480,7 +503,11 @@ impl PeerMapper {
     }
 
     pub fn add_peer(&mut self, peer_id: PeerId, public_key_data: TSSPublic) {
-        log::info!("Adding Peer {:?} with public key {:?}", peer_id, public_key_data);
+        log::info!(
+            "Adding Peer {:?} with public key {:?}",
+            peer_id,
+            public_key_data
+        );
         self.peers.insert(peer_id, public_key_data);
     }
 
@@ -493,13 +520,16 @@ impl PeerMapper {
 
     pub fn _get_validator_account_from_id(&mut self, id: u32) -> Option<TSSPublic> {
         let validator_ids = self.validator_ids.lock().unwrap();
-        let account = validator_ids.iter().find_map(|(key, val)| {
-            if *val == id {
-                Some(key.clone())
-            } else {
-                None
-            }
-        });
+        let account =
+            validator_ids.iter().find_map(
+                |(key, val)| {
+                    if *val == id {
+                        Some(key.clone())
+                    } else {
+                        None
+                    }
+                },
+            );
         drop(validator_ids);
         account
     }
@@ -589,12 +619,12 @@ impl<B: BlockT> SessionManager<B> {
             session_timestamps: Arc::new(Mutex::new(empty_hash_map())),
         }
     }
-    
+
     /// Check if a session exists
     fn session_exists(&self, session_id: &SessionId) -> bool {
         self.sessions_data.lock().unwrap().contains_key(session_id)
     }
-    
+
     /// Check if a session has timed out
     fn is_session_timed_out(&self, session_id: &SessionId) -> bool {
         let timestamps = self.session_timestamps.lock().unwrap();
@@ -604,7 +634,7 @@ impl<B: BlockT> SessionManager<B> {
         }
         false
     }
-    
+
     /// Check if node is authorized to participate in a session
     fn is_authorized_for_session(&self, session_id: &SessionId) -> bool {
         let mut peer_mapper = self.peer_mapper.lock().unwrap();
@@ -628,16 +658,22 @@ impl<B: BlockT> SessionManager<B> {
     ) -> Result<(), SessionError> {
         // Check if session already exists
         if self.session_exists(&session_id) {
-            log::warn!("[TSS] Session {} already exists, refusing to create again", session_id);
-        //    return Err(SessionError::SessionAlreadyExists);
+            log::warn!(
+                "[TSS] Session {} already exists, refusing to create again",
+                session_id
+            );
+            //    return Err(SessionError::SessionAlreadyExists);
         }
-        
+
         // Validate threshold requirements
         if t == 0 || n == 0 || t > n {
             log::error!("[TSS] Invalid threshold parameters t={}, n={}", t, n);
-            return Err(SessionError::GenericError(format!("Invalid threshold parameters: t={}, n={}", t, n)));
+            return Err(SessionError::GenericError(format!(
+                "Invalid threshold parameters: t={}, n={}",
+                t, n
+            )));
         }
-        
+
         // Validate participants list
         if participants.len() != n as usize {
             log::error!(
@@ -647,7 +683,8 @@ impl<B: BlockT> SessionManager<B> {
             );
             return Err(SessionError::GenericError(format!(
                 "Participant count ({}) doesn't match n parameter ({})",
-                participants.len(), n
+                participants.len(),
+                n
             )));
         }
 
@@ -659,12 +696,12 @@ impl<B: BlockT> SessionManager<B> {
         let mut peer_mapper = self.peer_mapper.lock().unwrap();
         peer_mapper.create_session(session_id, participants.clone());
         drop(peer_mapper);
-        
+
         // Record session creation time for timeout tracking
         let mut timestamps = self.session_timestamps.lock().unwrap();
         timestamps.insert(session_id, std::time::Instant::now());
         drop(timestamps);
-        
+
         log::info!("[TSS] Successfully created session {}", session_id);
         Ok(())
     }
@@ -676,7 +713,7 @@ impl<B: BlockT> SessionManager<B> {
             log::warn!("[TSS] Session {} has timed out", session_id);
             return None;
         }
-        
+
         self.sessions_data.lock().unwrap().get(session_id).cloned()
     }
 
@@ -704,7 +741,10 @@ impl<B: BlockT> SessionManager<B> {
             TssMessage::DKGRound1(session_id, ref bytes) => {
                 // Check if this session exists or is timed out
                 if !self.session_exists(session_id) {
-                    log::warn!("[TSS] Received DKGRound1 message for non-existent session {}", session_id);
+                    log::warn!(
+                        "[TSS] Received DKGRound1 message for non-existent session {}",
+                        session_id
+                    );
                     // Buffer the message in case session is created later
                     self.buffer
                         .lock()
@@ -714,17 +754,18 @@ impl<B: BlockT> SessionManager<B> {
                         .push((sender, TssMessage::DKGRound1(*session_id, bytes.clone())));
                     return;
                 }
-                
+
                 if self.is_session_timed_out(session_id) {
-                    log::warn!("[TSS] Received DKGRound1 message for timed out session {}", session_id);
+                    log::warn!(
+                        "[TSS] Received DKGRound1 message for timed out session {}",
+                        session_id
+                    );
                     return;
                 }
 
-                if let Err(error) = self.dkg_handle_round1_message(
-                    *session_id,
-                    bytes,
-                    sender_peer_id,
-                ) {
+                if let Err(error) =
+                    self.dkg_handle_round1_message(*session_id, bytes, sender_peer_id)
+                {
                     match error {
                         SessionManagerError::IdentifierNotFound => {
                             log::debug!("[TSS] Buffering DKGRound1 message for session {} (identifier not found yet)", session_id);
@@ -734,22 +775,32 @@ impl<B: BlockT> SessionManager<B> {
                                 .entry(*session_id)
                                 .or_insert(Vec::new())
                                 .push((sender, TssMessage::DKGRound1(*session_id, bytes.clone())));
-                        },
+                        }
                         _ => {
-                            log::error!("[TSS] Error handling DKGRound1 for session {}: {:?}", session_id, error);
-                        },
+                            log::error!(
+                                "[TSS] Error handling DKGRound1 for session {}: {:?}",
+                                session_id,
+                                error
+                            );
+                        }
                     }
                 }
             }
             TssMessage::DKGRound2(session_id, ref bytes, ref recipient) => {
                 // Check if this session exists or is timed out
                 if !self.session_exists(session_id) {
-                    log::warn!("[TSS] Received DKGRound2 message for non-existent session {}", session_id);
+                    log::warn!(
+                        "[TSS] Received DKGRound2 message for non-existent session {}",
+                        session_id
+                    );
                     return;
                 }
-                
+
                 if self.is_session_timed_out(session_id) {
-                    log::warn!("[TSS] Received DKGRound2 message for timed out session {}", session_id);
+                    log::warn!(
+                        "[TSS] Received DKGRound2 message for timed out session {}",
+                        session_id
+                    );
                     return;
                 }
 
@@ -759,12 +810,9 @@ impl<B: BlockT> SessionManager<B> {
                     bytes,
                     recipient
                 );
-                if let Err(error) = self.dkg_handle_round2_message(
-                    *session_id,
-                    bytes,
-                    recipient,
-                    sender_peer_id,
-                ) {
+                if let Err(error) =
+                    self.dkg_handle_round2_message(*session_id, bytes, recipient, sender_peer_id)
+                {
                     match error {
                         SessionManagerError::Round2SecretPackageNotYetAvailable => {
                             log::debug!("[TSS] Buffering DKGRound2 message for session {} (round 2 not ready yet)", session_id);
@@ -781,78 +829,104 @@ impl<B: BlockT> SessionManager<B> {
                                         recipient.clone(),
                                     ),
                                 ));
-                        },
+                        }
                         _ => {
-                            log::error!("[TSS] Error handling DKGRound2 for session {}: {:?}", session_id, error);
-                        },
+                            log::error!(
+                                "[TSS] Error handling DKGRound2 for session {}: {:?}",
+                                session_id,
+                                error
+                            );
+                        }
                     }
                 }
             }
             TssMessage::SigningCommitment(session_id, ref bytes) => {
                 // Check if this session exists or is timed out
                 if !self.session_exists(session_id) {
-                    log::warn!("[TSS] Received SigningCommitment message for non-existent session {}", session_id);
-                    return;
-                }
-                
-                if self.is_session_timed_out(session_id) {
-                    log::warn!("[TSS] Received SigningCommitment message for timed out session {}", session_id);
+                    log::warn!(
+                        "[TSS] Received SigningCommitment message for non-existent session {}",
+                        session_id
+                    );
                     return;
                 }
 
-                if let Err(error) = self.signing_handle_commitment(
-                    *session_id,
-                    bytes,
-                    sender_peer_id,
-                ) {
+                if self.is_session_timed_out(session_id) {
+                    log::warn!(
+                        "[TSS] Received SigningCommitment message for timed out session {}",
+                        session_id
+                    );
+                    return;
+                }
+
+                if let Err(error) =
+                    self.signing_handle_commitment(*session_id, bytes, sender_peer_id)
+                {
                     // only the coordinator is supposed to receive this
-                    log::error!("[TSS] Error Handling Signing Commitment for session {}: {:?}", session_id, error);
+                    log::error!(
+                        "[TSS] Error Handling Signing Commitment for session {}: {:?}",
+                        session_id,
+                        error
+                    );
                 }
             }
             TssMessage::SigningShare(session_id, ref bytes) => {
                 // Check if this session exists or is timed out
                 if !self.session_exists(session_id) {
-                    log::warn!("[TSS] Received SigningShare message for non-existent session {}", session_id);
+                    log::warn!(
+                        "[TSS] Received SigningShare message for non-existent session {}",
+                        session_id
+                    );
                     return;
                 }
-                
+
                 if self.is_session_timed_out(session_id) {
-                    log::warn!("[TSS] Received SigningShare message for timed out session {}", session_id);
+                    log::warn!(
+                        "[TSS] Received SigningShare message for timed out session {}",
+                        session_id
+                    );
                     return;
                 }
 
                 // only the coordinator is supposed to receive this
-                match self.signing_handle_signature_share(
-                    *session_id,
-                    bytes,
-                    sender_peer_id,
-                ) {
-                    Err(error) => log::error!("[TSS] Error Handling Signing Share for session {}: {:?}", session_id, error),
-                    Ok(signature) => log::debug!("[TSS] Signature: {:?}", signature)
+                match self.signing_handle_signature_share(*session_id, bytes, sender_peer_id) {
+                    Err(error) => log::error!(
+                        "[TSS] Error Handling Signing Share for session {}: {:?}",
+                        session_id,
+                        error
+                    ),
+                    Ok(signature) => log::debug!("[TSS] Signature: {:?}", signature),
                 }
             }
 
             TssMessage::SigningPackage(session_id, bytes) => {
                 // Check if this session exists or is timed out
                 if !self.session_exists(session_id) {
-                    log::warn!("[TSS] Received SigningPackage message for non-existent session {}", session_id);
+                    log::warn!(
+                        "[TSS] Received SigningPackage message for non-existent session {}",
+                        session_id
+                    );
                     return;
                 }
-                
+
                 if self.is_session_timed_out(session_id) {
-                    log::warn!("[TSS] Received SigningPackage message for timed out session {}", session_id);
+                    log::warn!(
+                        "[TSS] Received SigningPackage message for timed out session {}",
+                        session_id
+                    );
                     return;
                 }
 
                 // this should be for the participants
                 // be careful, if participant is also the coordinator they should not send
                 // stuff to themselves.
-                if let Err(error) = self.signing_handle_signing_package(
-                    *session_id,
-                    &bytes,
-                    sender_peer_id,
-                ) {
-                    log::error!("[TSS] Error Handling Signing Package for session {}: {:?}", session_id, error);
+                if let Err(error) =
+                    self.signing_handle_signing_package(*session_id, &bytes, sender_peer_id)
+                {
+                    log::error!(
+                        "[TSS] Error Handling Signing Package for session {}: {:?}",
+                        session_id,
+                        error
+                    );
                 }
             }
 
@@ -877,15 +951,21 @@ impl<B: BlockT> SessionManager<B> {
             | TssMessage::ECDSAMessageSignOnline(session_id, _index, msg) => {
                 // Check if this session exists or is timed out
                 if !self.session_exists(session_id) {
-                    log::warn!("[TSS] Received ECDSA message for non-existent session {}", session_id);
+                    log::warn!(
+                        "[TSS] Received ECDSA message for non-existent session {}",
+                        session_id
+                    );
                     return;
                 }
-                
+
                 if self.is_session_timed_out(session_id) {
-                    log::warn!("[TSS] Received ECDSA message for timed out session {}", session_id);
+                    log::warn!(
+                        "[TSS] Received ECDSA message for timed out session {}",
+                        session_id
+                    );
                     return;
                 }
-                
+
                 // Check if the node is authorized for this session
                 if !self.is_authorized_for_session(session_id) {
                     log::warn!("[TSS] Node not authorized for session {}", session_id);
@@ -938,7 +1018,11 @@ impl<B: BlockT> SessionManager<B> {
                 );
 
                 if let Err(error) = &sending_messages {
-                    log::error!("[TSS] Error sending messages for session {}: {:?}", session_id, error);
+                    log::error!(
+                        "[TSS] Error sending messages for session {}: {:?}",
+                        session_id,
+                        error
+                    );
                     return;
                 }
                 log::debug!("[TSS] calling handle_ecdsa_sending_messages()");
@@ -1121,7 +1205,7 @@ impl<B: BlockT> SessionManager<B> {
                                 (Err(error), _) => {
                                     log::error!("[TSS] Error sending messages {:?}", error);
                                     None
-                                } 
+                                }
                                 (Ok(sending_messages), _) => Some(sending_messages),
                             },
                             ECDSAPhase::Sign => match self
@@ -1210,7 +1294,7 @@ impl<B: BlockT> SessionManager<B> {
                     )
                     .clone();
 
-                                drop(peer_mapper);
+                drop(peer_mapper);
                 log::debug!("[TSS] SendingMessages::BroadcastMessage, lock dropped");
 
                 if let None = index {
@@ -1353,7 +1437,7 @@ impl<B: BlockT> SessionManager<B> {
                     }
                 };
             }
-            SendingMessages::ReshareKeySuccessWithResult(msg) =>{
+            SendingMessages::ReshareKeySuccessWithResult(msg) => {
                 let _id = self.get_my_identifier(session_id);
                 log::info!("[TSS] ECDSA Reshare successful, storing keys {:?}", msg);
 
@@ -1379,7 +1463,6 @@ impl<B: BlockT> SessionManager<B> {
                     .clone();
                 drop(peer_mapper);
                 drop(storage);
-
 
                 if let None = index {
                     log::error!("[TSS] Index is not, shouldn't have happened, returning");
@@ -1773,10 +1856,9 @@ impl<B: BlockT> SessionManager<B> {
         if round2_packages.keys().len() >= (n - 1).into() {
             match dkg::part3(&round2_secret_package, &round1_packages, &round2_packages) {
                 Ok((private_key, public_key)) => {
-
-
                     let mut peer_mapper_handle = self.peer_mapper.lock().unwrap();
-                    let whoami_identifier = peer_mapper_handle.get_identifier_from_account_id(&session_id, &self.validator_key);
+                    let whoami_identifier = peer_mapper_handle
+                        .get_identifier_from_account_id(&session_id, &self.validator_key);
 
                     if let None = whoami_identifier {
                         log::error!("[TSS] We are not allowed to participate in the signing phase");
@@ -1784,8 +1866,6 @@ impl<B: BlockT> SessionManager<B> {
                     }
 
                     drop(peer_mapper_handle);
-
-
 
                     let mut storage = self.key_storage.lock().unwrap();
                     let _ = storage.store_data(
@@ -1841,13 +1921,20 @@ impl<B: BlockT> SessionManager<B> {
     where
         B: BlockT,
     {
-        
         // Validate threshold and participant count
         if t == 0 || n == 0 || t > n {
-            log::error!("[TSS] Invalid threshold parameters for DKG session {}: t={}, n={}", session_id, t, n);
-            return Err(SessionError::GenericError(format!("Invalid threshold parameters: t={}, n={}", t, n)));
+            log::error!(
+                "[TSS] Invalid threshold parameters for DKG session {}: t={}, n={}",
+                session_id,
+                t,
+                n
+            );
+            return Err(SessionError::GenericError(format!(
+                "Invalid threshold parameters: t={}, n={}",
+                t, n
+            )));
         }
-        
+
         if participants.len() != n as usize {
             log::error!(
                 "[TSS] Mismatch between participant count and n parameter for DKG session {}: {} vs {}",
@@ -1855,10 +1942,11 @@ impl<B: BlockT> SessionManager<B> {
             );
             return Err(SessionError::GenericError(format!(
                 "Participant count ({}) doesn't match n parameter ({})",
-                participants.len(), n
+                participants.len(),
+                n
             )));
         }
-        
+
         let mut index = None;
         log::debug!("[TSS] participants={:?}", participants);
 
@@ -1871,22 +1959,30 @@ impl<B: BlockT> SessionManager<B> {
         }
 
         if index.is_none() {
-            log::error!("[TSS] Not authorized to participate in DKG session {}", session_id);
+            log::error!(
+                "[TSS] Not authorized to participate in DKG session {}",
+                session_id
+            );
             return Err(SessionError::NotAuthorized);
         }
-        
+
         let index: Result<u16, TryFromIntError> = index.unwrap().try_into();
         if let Err(e) = index {
             log::error!("[TSS] Error converting index to u16: {:?}", e);
-            return Err(SessionError::GenericError("Error converting index to u16".into()));
+            return Err(SessionError::GenericError(
+                "Error converting index to u16".into(),
+            ));
         }
-        
+
         let index = index.unwrap();
         info!("[TSS] Our index in DKG session {}: {}", session_id, index);
 
         let participant_identifier: Identifier = (index + 1).try_into().unwrap();
 
-        log::info!("[TSS] Event received from DKG, starting round 1 for session {}", session_id);
+        log::info!(
+            "[TSS] Event received from DKG, starting round 1 for session {}",
+            session_id
+        );
 
         // Generate round 1 package
         let (r1, secret) = match dkground1::generate_round1_secret_package(
@@ -1897,8 +1993,15 @@ impl<B: BlockT> SessionManager<B> {
         ) {
             Ok(result) => result,
             Err(e) => {
-                log::error!("[TSS] Failed to generate round 1 package for session {}: {:?}", session_id, e);
-                return Err(SessionError::GenericError(format!("Failed to generate round 1 package: {:?}", e)));
+                log::error!(
+                    "[TSS] Failed to generate round 1 package for session {}: {:?}",
+                    session_id,
+                    e
+                );
+                return Err(SessionError::GenericError(format!(
+                    "Failed to generate round 1 package: {:?}",
+                    e
+                )));
             }
         };
 
@@ -1910,8 +2013,15 @@ impl<B: BlockT> SessionManager<B> {
             &secret.serialize().unwrap()[..],
             None,
         ) {
-            log::error!("[TSS] Failed to store secret package for session {}: {:?}", session_id, e);
-            return Err(SessionError::GenericError(format!("Failed to store secret package: {:?}", e)));
+            log::error!(
+                "[TSS] Failed to store secret package for session {}: {:?}",
+                session_id,
+                e
+            );
+            return Err(SessionError::GenericError(format!(
+                "Failed to store secret package: {:?}",
+                e
+            )));
         }
 
         // Update session state
@@ -1925,10 +2035,20 @@ impl<B: BlockT> SessionManager<B> {
             PeerId::from_bytes(&self.local_peer_id[..]).unwrap(),
             TssMessage::DKGRound1(session_id, r1.serialize().unwrap()),
         )) {
-            Ok(_) => log::info!("[TSS] Round 1 message broadcasted for session {}", session_id),
+            Ok(_) => log::info!(
+                "[TSS] Round 1 message broadcasted for session {}",
+                session_id
+            ),
             Err(e) => {
-                log::error!("[TSS] Failed to send round 1 message for session {}: {:?}", session_id, e);
-                return Err(SessionError::GenericError(format!("Failed to send round 1 message: {:?}", e)));
+                log::error!(
+                    "[TSS] Failed to send round 1 message for session {}: {:?}",
+                    session_id,
+                    e
+                );
+                return Err(SessionError::GenericError(format!(
+                    "Failed to send round 1 message: {:?}",
+                    e
+                )));
             }
         }
 
@@ -1963,7 +2083,7 @@ impl<B: BlockT> SessionManager<B> {
 
         // Try to complete round 1 if we have enough messages already
         self.dkg_handle_verification_to_complete_round1(session_id);
-        
+
         Ok(())
     }
 
@@ -2013,7 +2133,13 @@ impl<B: BlockT> SessionManager<B> {
 
         let key_storage = self.key_storage.lock().unwrap();
 
-        let key_package = key_storage.get_key_package(session_id, &(u16::try_from(index.unwrap()+1).unwrap().try_into().unwrap()));
+        let key_package = key_storage.get_key_package(
+            session_id,
+            &(u16::try_from(index.unwrap() + 1)
+                .unwrap()
+                .try_into()
+                .unwrap()),
+        );
 
         if let Err(error) = key_package {
             log::error!("[TSS] Error fetching Key Package {:?}", error);
@@ -2135,15 +2261,15 @@ impl<B: BlockT> SessionManager<B> {
         drop(peer_mapper_handle);
         drop(storage);
 
-
         let handle_state = self.signing_session_states.lock().unwrap();
         let current_state = handle_state.get(&session_id);
 
-        if current_state.is_some() && current_state.unwrap() >= &SigningSessionState::Round2Completed {
+        if current_state.is_some()
+            && current_state.unwrap() >= &SigningSessionState::Round2Completed
+        {
             return Ok(());
         }
         drop(handle_state);
-
 
         if self.is_coordinator(&session_id) {
             log::info!("[TSS] calling signing_handle_verification_to_complete_round1()");
@@ -2170,12 +2296,12 @@ impl<B: BlockT> SessionManager<B> {
             log::error!("[TSS] Session doesn't exist");
             return;
         }
-        let (t,_,_,message) = session_data.unwrap();
+        let (t, _, _, message) = session_data.unwrap();
 
         if u16::try_from(keys.len()).unwrap() < *t {
             return;
         }
-        
+
         let message = &message[..];
 
         let signing_package = signlib::get_signing_package(message, commitments.clone());
@@ -2183,7 +2309,6 @@ impl<B: BlockT> SessionManager<B> {
         let mut handle_state = self.signing_session_states.lock().unwrap();
         handle_state.insert(session_id, SigningSessionState::Round2Initiated);
         drop(handle_state);
-
 
         if let Err(error) = signing_package.serialize() {
             log::error!(
@@ -2204,7 +2329,6 @@ impl<B: BlockT> SessionManager<B> {
                 error
             );
         }
-
 
         self.signing_send_signing_package_to_committed_participants(
             session_id,
@@ -2290,9 +2414,9 @@ impl<B: BlockT> SessionManager<B> {
             );
         }
 
-
         let mut peer_mapper_handle = self.peer_mapper.lock().unwrap();
-        let whoami_identifier = peer_mapper_handle.get_identifier_from_account_id(&session_id, &self.validator_key);
+        let whoami_identifier =
+            peer_mapper_handle.get_identifier_from_account_id(&session_id, &self.validator_key);
 
         if let None = whoami_identifier {
             log::error!("[TSS] We are not allowed to participate in the signing phase");
@@ -2306,7 +2430,12 @@ impl<B: BlockT> SessionManager<B> {
             log::error!("[TSS] Error fetching the key package {:?}", error);
         }
 
-        if (&signing_package.as_ref()).unwrap().signing_commitments().len() < (*(&key_package.as_ref()).unwrap().min_signers()).into() {
+        if (&signing_package.as_ref())
+            .unwrap()
+            .signing_commitments()
+            .len()
+            < (*(&key_package.as_ref()).unwrap().min_signers()).into()
+        {
             log::info!("[TSS] FROST round 2 signing requires at least {:?} signers, for now only {:?} provided", key_package.unwrap().min_signers(), signing_package.unwrap().signing_commitments().len());
             return Ok(());
         }
@@ -2325,10 +2454,8 @@ impl<B: BlockT> SessionManager<B> {
         // log::info!("[TSS] calling signing_handle_verification_to_complete_round1()");
         // self.signing_handle_verification_to_complete_round1(session_id);
 
-
-
         let data = self.get_session_data(&session_id);
-        
+
         if let None = data {
             log::error!("[TSS] No data found in Storage");
         }
@@ -2342,12 +2469,15 @@ impl<B: BlockT> SessionManager<B> {
         let coordinator = peer_mapper_handle.get_peer_id_from_account_id(&coordinator);
 
         if let Some(coordinator) = coordinator {
-            log::debug!("I found that coordinator is associated with peer_id = {:?}", coordinator);
+            log::debug!(
+                "I found that coordinator is associated with peer_id = {:?}",
+                coordinator
+            );
             match self.session_manager_to_gossip_tx.unbounded_send((
                 coordinator.clone(),
                 TssMessage::SigningShare(session_id, signature_share.serialize()),
             )) {
-                Err(error) =>log::error!(
+                Err(error) => log::error!(
                     "[TSS] There was an error sending Signature Share to the coordinator {:?}",
                     error
                 ),
@@ -2357,13 +2487,17 @@ impl<B: BlockT> SessionManager<B> {
                     let mut session_state_lock = self.signing_session_states.lock().unwrap();
                     session_state_lock.insert(session_id, SigningSessionState::Round2Completed);
                     drop(session_state_lock);
-                    log::info!("[TSS] Signin State updated to SigningSessionState::Round2Completed");
+                    log::info!(
+                        "[TSS] Signin State updated to SigningSessionState::Round2Completed"
+                    );
                 }
             }
         } else {
-            log::error!("[TSS] Missing coordinator information, for peer {:?}", coordinator);
+            log::error!(
+                "[TSS] Missing coordinator information, for peer {:?}",
+                coordinator
+            );
         }
-        
 
         Ok(())
     }
@@ -2379,7 +2513,6 @@ impl<B: BlockT> SessionManager<B> {
         let mut session_state_lock = self.signing_session_states.lock().unwrap();
         session_state_lock.insert(session_id, SigningSessionState::Round3Initiated);
         drop(session_state_lock);
-        
 
         if let Err(error) = signature_share {
             log::error!(
@@ -2454,7 +2587,8 @@ impl<B: BlockT> SessionManager<B> {
 
             let key_storage = self.key_storage.lock().unwrap();
             let mut peer_mapper_handle = self.peer_mapper.lock().unwrap();
-            let whoami_identifier = peer_mapper_handle.get_identifier_from_account_id(&session_id, &self.validator_key);
+            let whoami_identifier =
+                peer_mapper_handle.get_identifier_from_account_id(&session_id, &self.validator_key);
 
             if let None = whoami_identifier {
                 log::error!("[TSS] We are not allowed to participate in the signing phase");
@@ -2480,7 +2614,7 @@ impl<B: BlockT> SessionManager<B> {
             if let Err(error) = signature {
                 log::error!("[TSS] Error aggregating Signature {:?}", error);
 
-                 // Update session state to Round1Completed
+                // Update session state to Round1Completed
                 let mut session_state_lock = self.signing_session_states.lock().unwrap();
                 session_state_lock.insert(session_id, SigningSessionState::Failed);
                 drop(session_state_lock);
@@ -2491,14 +2625,16 @@ impl<B: BlockT> SessionManager<B> {
             handle_state.insert(session_id, SigningSessionState::SignatureGenerated);
             drop(handle_state);
 
-
-            
             drop(storage);
             drop(key_storage);
 
             return Ok(signature.unwrap());
         }
-        log::error!("[TSS] Only {:?} signature shares received. Needing {:?} to proceed", signature_shares.len(), t);
+        log::error!(
+            "[TSS] Only {:?} signature shares received. Needing {:?} to proceed",
+            signature_shares.len(),
+            t
+        );
         return Err(SessionManagerError::SignatureNotReadyYet);
     }
 
@@ -2559,7 +2695,6 @@ impl<B: BlockT> SessionManager<B> {
     ) {
         let mut handler = self.ecdsa_manager.lock().unwrap();
 
-
         let my_id = participants
             .iter()
             .position(|&el| el == &self.validator_key[..]);
@@ -2570,16 +2705,21 @@ impl<B: BlockT> SessionManager<B> {
         }
         log::info!("[TSS] My Id = {:?}", my_id.unwrap() + 1);
 
-        let identifier: Identifier = u16::try_from(my_id.unwrap() + 1).unwrap().try_into().unwrap();
+        let identifier: Identifier = u16::try_from(my_id.unwrap() + 1)
+            .unwrap()
+            .try_into()
+            .unwrap();
 
-        let current_keys = self.key_storage.lock().unwrap().read_data(id, StorageType::EcdsaKeys, Some(&identifier.serialize()));
+        let current_keys = self.key_storage.lock().unwrap().read_data(
+            id,
+            StorageType::EcdsaKeys,
+            Some(&identifier.serialize()),
+        );
 
         let current_keys = match current_keys {
             Err(_) => None,
             Ok(keys) => Some(String::from_utf8(keys).unwrap()),
         };
-
-
 
         let reshare = handler.add_reshare(
             id,
@@ -2625,7 +2765,7 @@ impl<B: BlockT> SessionManager<B> {
         let sign_offline = ecdsa_manager.add_sign(
             id,
             index,
-            &(1..n+1)
+            &(1..n + 1)
                 .into_iter()
                 .map(|el| el.to_string())
                 .collect::<Vec<String>>(),
@@ -2678,8 +2818,11 @@ impl<B: BlockT> SessionManager<B> {
         let mut handler = self.ecdsa_manager.lock().unwrap();
         let storage = self.key_storage.lock().unwrap();
 
-        let offline_result =
-            storage.read_data(id, StorageType::EcdsaOfflineOutput, Some(&identifier.serialize()));
+        let offline_result = storage.read_data(
+            id,
+            StorageType::EcdsaOfflineOutput,
+            Some(&identifier.serialize()),
+        );
 
         if let Err(error) = offline_result {
             log::error!("[TSS] Error fetching keys {:?}", error);
@@ -2723,7 +2866,7 @@ impl<B: BlockT> SessionManager<B> {
     fn cleanup_expired_sessions(&mut self) {
         let now = std::time::Instant::now();
         let mut expired_sessions = Vec::new();
-        
+
         // Identify expired sessions
         {
             let timestamps = self.session_timestamps.lock().unwrap();
@@ -2733,37 +2876,37 @@ impl<B: BlockT> SessionManager<B> {
                 }
             }
         }
-        
+
         // Clean up expired sessions
         for session_id in expired_sessions {
             log::info!("[TSS] Cleaning up expired session {}", session_id);
-            
+
             // Remove from all session data structures
             {
                 let mut session_data = self.sessions_data.lock().unwrap();
                 session_data.remove(&session_id);
             }
-            
+
             {
                 let mut sessions_participants = self.sessions_participants.lock().unwrap();
                 sessions_participants.remove(&session_id);
             }
-            
+
             {
                 let mut dkg_states = self.dkg_session_states.lock().unwrap();
                 dkg_states.remove(&session_id);
             }
-            
+
             {
                 let mut signing_states = self.signing_session_states.lock().unwrap();
                 signing_states.remove(&session_id);
             }
-            
+
             {
                 let mut timestamps = self.session_timestamps.lock().unwrap();
                 timestamps.remove(&session_id);
             }
-            
+
             {
                 let mut buffer = self.buffer.lock().unwrap();
                 buffer.remove(&session_id);
@@ -2773,17 +2916,17 @@ impl<B: BlockT> SessionManager<B> {
 
     async fn run(mut self) {
         log::info!("[TSS] Listening for messages inside Session Manager from Gossip and Runtime");
-        
+
         // Set up a timer for periodic session cleanup
         let mut cleanup_interval = interval(Duration::from_secs(60));
-        
+
         loop {
             select! {
                 // Run periodic cleanup of expired sessions
                 _ = cleanup_interval.next().fuse() => {
                     self.cleanup_expired_sessions();
                 },
-                
+
                 // Process messages from the gossip network
                 gossip_notification = self.gossip_to_session_manager_rx.next().fuse() => {
                     if let Some((peer_id, message)) = gossip_notification {
@@ -2812,13 +2955,39 @@ impl<B: BlockT> SessionManager<B> {
                     log::error!("[TSS] Failed to process DKG session {}: {:?}", id, e);
                 }
             }
-            TSSRuntimeEvent::DKGReshareSessionInfoReady(id, t, n, participants, old_participants) => {
-                if let Err(e) = self.add_and_initialize_dkg_reshare_session(id, t, n, participants, old_participants) {
+            TSSRuntimeEvent::DKGReshareSessionInfoReady(
+                id,
+                t,
+                n,
+                participants,
+                old_participants,
+            ) => {
+                if let Err(e) = self.add_and_initialize_dkg_reshare_session(
+                    id,
+                    t,
+                    n,
+                    participants,
+                    old_participants,
+                ) {
                     log::error!("[TSS] Failed to process DKG session {}: {:?}", id, e);
                 }
             }
-            TSSRuntimeEvent::SigningSessionInfoReady(id, t, n, participants, coordinator, message) => {
-                if let Err(e) = self.add_and_initialize_signing_session(id, t, n, participants, coordinator, message) {
+            TSSRuntimeEvent::SigningSessionInfoReady(
+                id,
+                t,
+                n,
+                participants,
+                coordinator,
+                message,
+            ) => {
+                if let Err(e) = self.add_and_initialize_signing_session(
+                    id,
+                    t,
+                    n,
+                    participants,
+                    coordinator,
+                    message,
+                ) {
                     log::error!("[TSS] Failed to process signing session {}: {:?}", id, e);
                 }
             }
@@ -2828,51 +2997,74 @@ impl<B: BlockT> SessionManager<B> {
         }
     }
 
-    fn add_and_initialize_dkg_session(&mut self, id: SessionId, t: u16, n: u16, participants: Vec<TSSParticipant>) -> Result<(), String> {
+    fn add_and_initialize_dkg_session(
+        &mut self,
+        id: SessionId,
+        t: u16,
+        n: u16,
+        participants: Vec<TSSParticipant>,
+    ) -> Result<(), String> {
         self.add_session_data(id, t, n, [0; 32], participants.clone(), Vec::new())
             .map_err(|e| format!("Failed to add data: {:?}", e))?;
-        
+
         log::info!("[TSS] Successfully added data for DKG session {}", id);
-        
+
         self.dkg_handle_session_created(id, n.into(), t.into(), participants.clone())
             .map_err(|e| format!("Failed to initialize DKG session: {:?}", e))?;
-        
+
         log::info!("[TSS] Successfully initialized DKG session {}", id);
-        
+
         self.ecdsa_create_keygen_phase(id, n.into(), t.into(), participants);
-        
+
         Ok(())
     }
 
-    fn add_and_initialize_dkg_reshare_session(&mut self, id: SessionId, t: u16, n: u16, participants: Vec<TSSParticipant>, old_participants: Vec<TSSParticipant>) -> Result<(), String> {
+    fn add_and_initialize_dkg_reshare_session(
+        &mut self,
+        id: SessionId,
+        t: u16,
+        n: u16,
+        participants: Vec<TSSParticipant>,
+        old_participants: Vec<TSSParticipant>,
+    ) -> Result<(), String> {
         self.add_session_data(id, t, n, [0; 32], participants.clone(), Vec::new())
             .map_err(|e| format!("Failed to add data: {:?}", e))?;
-        
+
         // log::info!("[TSS] Successfully added data for DKG session {}", id);
-        
+
         // self.dkg_handle_session_created(id, n.into(), t.into(), participants.clone())
         //     .map_err(|e| format!("Failed to initialize DKG session: {:?}", e))?;
-        
+
         log::info!("[TSS] Successfully initialized DKG session {}", id);
-        
+
         self.ecdsa_create_reshare_phase(id, n.into(), t.into(), participants, old_participants);
-        
+
         Ok(())
     }
 
-    fn add_and_initialize_signing_session(&mut self, id: SessionId, t: u16, n: u16, participants: Vec<TSSParticipant>, coordinator: [u8; 32], message: Vec<u8>) -> Result<(), String> {
+    fn add_and_initialize_signing_session(
+        &mut self,
+        id: SessionId,
+        t: u16,
+        n: u16,
+        participants: Vec<TSSParticipant>,
+        coordinator: [u8; 32],
+        message: Vec<u8>,
+    ) -> Result<(), String> {
         self.add_session_data(id, t, n, coordinator, participants.clone(), message.clone())
             .map_err(|e| format!("Failed to add data: {:?}", e))?;
-        
+
         log::info!("[TSS] Successfully added data for signing session {}", id);
 
         self.signing_handle_session_created(id, participants.clone(), coordinator.clone());
-    
-        log::info!("[TSS] Successfully initialized FROST Signing session {}", id);
 
-        
+        log::info!(
+            "[TSS] Successfully initialized FROST Signing session {}",
+            id
+        );
+
         self.ecdsa_create_sign_phase(id, participants, message);
-        
+
         Ok(())
     }
 
@@ -3010,12 +3202,18 @@ where
                                         }
                                     }
 
-                                    RuntimeEvent::Tss(TssEvent::SigningSessionCreated(signing_session_id, dkg_session_id)) => {
+                                    RuntimeEvent::Tss(TssEvent::SigningSessionCreated(
+                                        signing_session_id,
+                                        dkg_session_id,
+                                    )) => {
                                         log::debug!("[TSS] Starting signing session {:?} using DKG session {:?}",signing_session_id, dkg_session_id);
                                         let n = self
                                             .client
                                             .runtime_api()
-                                            .get_dkg_session_participants_count(hash, dkg_session_id)
+                                            .get_dkg_session_participants_count(
+                                                hash,
+                                                dkg_session_id,
+                                            )
                                             .unwrap();
                                         let t = self
                                             .client
@@ -3023,7 +3221,6 @@ where
                                             .get_dkg_session_threshold(hash, dkg_session_id)
                                             .unwrap();
 
-                                        
                                         // t is a percentage value, convert it to the actual threshold value
                                         let t = (t as f64 * n as f64 / 100.0) as u16;
 
@@ -3051,16 +3248,22 @@ where
                                                 n,
                                                 participants,
                                                 coordinator,
-                                                message.concat()
+                                                message.concat(),
                                             ),
                                         ) {
                                             log::error!("[TSS] There was a problem communicating with the TSS Session Manager {:?}", e);
                                         }
                                     }
 
-                                    RuntimeEvent::Tss(TssEvent::ValidatorIdAssigned(account_id, id)) => {
+                                    RuntimeEvent::Tss(TssEvent::ValidatorIdAssigned(
+                                        account_id,
+                                        id,
+                                    )) => {
                                         if let Err(e) = self.sender.unbounded_send(
-                                            TSSRuntimeEvent::ValidatorIdAssigned(account_id.into(), id),
+                                            TSSRuntimeEvent::ValidatorIdAssigned(
+                                                account_id.into(),
+                                                id,
+                                            ),
                                         ) {
                                             log::error!("[TSS] There was a problem communicating with the TSS Session Manager {:?}", e);
                                         }
@@ -3084,7 +3287,11 @@ pub trait TssMessageHandler {
     fn send_message(&mut self, message: TssMessage, recipient: PeerId) -> Result<(), String>;
     fn broadcast_message(&mut self, message: TssMessage) -> Result<(), String>;
     fn handle_announcment(&mut self, sender: PeerId, message: TssMessage);
-    fn forward_to_session_manager(&self, sender: PeerId, message: TssMessage) -> Result<(), TrySendError<(PeerId, TssMessage)>>;
+    fn forward_to_session_manager(
+        &self,
+        sender: PeerId,
+        message: TssMessage,
+    ) -> Result<(), TrySendError<(PeerId, TssMessage)>>;
 }
 struct GossipHandler<B: BlockT> {
     gossip_engine: GossipEngine<B>,
@@ -3113,7 +3320,7 @@ impl<B: BlockT> GossipHandler<B> {
         }
     }
 }
-impl<B:BlockT> TssMessageHandler for GossipHandler<B> {
+impl<B: BlockT> TssMessageHandler for GossipHandler<B> {
     fn broadcast_message(&mut self, message: TssMessage) -> Result<(), String> {
         let topic = <<B::Header as HeaderT>::Hashing as HashT>::hash("tss_topic".as_bytes());
         Ok(self
@@ -3156,8 +3363,13 @@ impl<B:BlockT> TssMessageHandler for GossipHandler<B> {
             }
         }
     }
-    fn forward_to_session_manager(&self, sender: PeerId, message: TssMessage) -> Result<(), TrySendError<(PeerId, TssMessage)>> {
-        self.gossip_to_session_manager_tx.unbounded_send((sender, message))
+    fn forward_to_session_manager(
+        &self,
+        sender: PeerId,
+        message: TssMessage,
+    ) -> Result<(), TrySendError<(PeerId, TssMessage)>> {
+        self.gossip_to_session_manager_tx
+            .unbounded_send((sender, message))
     }
 }
 
@@ -3169,7 +3381,7 @@ trait ECDSAMessageRouter {
         index: String,
         bytes: Vec<u8>,
         phase: ECDSAPhase,
-        recipient: Option<PeerId>
+        recipient: Option<PeerId>,
     ) -> Result<(), String>;
 }
 
@@ -3180,7 +3392,7 @@ impl<T: TssMessageHandler> ECDSAMessageRouter for T {
         index: String,
         bytes: Vec<u8>,
         phase: ECDSAPhase,
-        recipient: Option<PeerId>
+        recipient: Option<PeerId>,
     ) -> Result<(), String> {
         let message = match phase {
             ECDSAPhase::Key => TssMessage::ECDSAMessageKeygen(session_id, index, bytes),
@@ -3198,7 +3410,7 @@ impl<T: TssMessageHandler> ECDSAMessageRouter for T {
                     phase
                 );
                 self.send_message(message, peer)
-            },
+            }
             None => {
                 log::debug!(
                     "[TSS] Sending message to all peers for session_id {:?} with phase {:?}",
@@ -3207,7 +3419,8 @@ impl<T: TssMessageHandler> ECDSAMessageRouter for T {
                 );
                 self.broadcast_message(message)
             }
-        }.map_err(|error| {
+        }
+        .map_err(|error| {
             log::error!(
                 "[TSS] Error sending ECDSA message for session_id {:?}, phase {:?} with error {:?}",
                 session_id,
@@ -3221,11 +3434,11 @@ impl<T: TssMessageHandler> ECDSAMessageRouter for T {
 
 // Helper method to process gossip engine notifications
 fn process_gossip_notification<T: TssMessageHandler>(
-    handler: &mut T, 
-    notification: TopicNotification
+    handler: &mut T,
+    notification: TopicNotification,
 ) -> Option<()> {
     let sender = notification.sender?;
-    
+
     let message = match TssMessage::decode(&mut &notification.message[..]) {
         Ok(msg) => msg,
         Err(_) => {
@@ -3233,28 +3446,31 @@ fn process_gossip_notification<T: TssMessageHandler>(
             return Some(());
         }
     };
-    
+
     match message {
         TssMessage::Announce(_, _, _, _) => {
             handler.handle_announcment(sender, message);
         }
         _ => {
             if let Err(e) = handler.forward_to_session_manager(sender, message) {
-                log::error!("[TSS] Failed to forward message to session manager: {:?}", e);
+                log::error!(
+                    "[TSS] Failed to forward message to session manager: {:?}",
+                    e
+                );
             }
         }
     }
-    
+
     Some(())
 }
 
 // Helper method to process session manager messages
 fn process_session_manager_message<T: TssMessageHandler + ECDSAMessageRouter>(
     handler: &mut T,
-    msg: (PeerId, TssMessage)
+    msg: (PeerId, TssMessage),
 ) -> Result<(), String> {
     let (recipient, message) = msg;
-    
+
     match message {
         TssMessage::DKGRound1(id, bytes) => {
             handler.broadcast_message(TssMessage::DKGRound1(id, bytes))
@@ -3263,13 +3479,13 @@ fn process_session_manager_message<T: TssMessageHandler + ECDSAMessageRouter>(
                     e
                 })
         }
-        
+
         TssMessage::DKGRound2(id, bytes, recipient_bytes) => {
             match PeerId::from_bytes(&recipient_bytes[..]) {
                 Ok(peer_id) => {
                     handler.send_message(TssMessage::DKGRound2(id, bytes, recipient_bytes.clone()), peer_id)
                         .map_err(|e| {
-                            log::error!("[TSS] Error sending TssMessage::DKGRound2 for session_id {:?}, peer_id {:?} with error {:?}", 
+                            log::error!("[TSS] Error sending TssMessage::DKGRound2 for session_id {:?}, peer_id {:?} with error {:?}",
                                 id, recipient_bytes, e);
                             e
                         })
@@ -3280,47 +3496,46 @@ fn process_session_manager_message<T: TssMessageHandler + ECDSAMessageRouter>(
                 }
             }
         }
-        
+
         TssMessage::SigningPackage(id, bytes) => {
             handler.send_message(TssMessage::SigningPackage(id, bytes), recipient)
                 .map_err(|e| {
-                    log::error!("[TSS] Error sending TssMessage::SigningPackage for session_id {:?}, peer_id {:?} with error {:?}", 
+                    log::error!("[TSS] Error sending TssMessage::SigningPackage for session_id {:?}, peer_id {:?} with error {:?}",
                         id, recipient, e);
                     e
                 })
         }
-        
+
         TssMessage::SigningCommitment(id, bytes) => {
             handler.send_message(TssMessage::SigningCommitment(id, bytes), recipient)
                 .map_err(|e| {
-                    log::error!("[TSS] Error sending TssMessage::SigningCommitment for session_id {:?}, peer_id {:?} with error {:?}", 
+                    log::error!("[TSS] Error sending TssMessage::SigningCommitment for session_id {:?}, peer_id {:?} with error {:?}",
                         id, recipient, e);
                     e
                 })
         }
-        
+
         TssMessage::SigningShare(id, bytes) => {
             handler.send_message(TssMessage::SigningShare(id, bytes), recipient)
                 .map_err(|e| {
-                    log::error!("[TSS] Error sending TssMessage::SigningShare for session_id {:?}, peer_id {:?} with error {:?}", 
+                    log::error!("[TSS] Error sending TssMessage::SigningShare for session_id {:?}, peer_id {:?} with error {:?}",
                         id, recipient, e);
                     e
                 })
         }
-        
+
         TssMessage::ECDSAMessageBroadcast(session_id, index, bytes, phase) |
         TssMessage::ECDSAMessageSubset(session_id, index, bytes, phase) => {
             handler.route_ecdsa_message(session_id, index, bytes, phase, None)
         }
-        
+
         TssMessage::ECDSAMessageP2p(session_id, index, _peer_id, bytes, phase) => {
             handler.route_ecdsa_message(session_id, index, bytes, phase, Some(recipient))
         }
-        
+
         _ => Ok(())
     }
 }
-
 
 impl<B: BlockT> Future for GossipHandler<B> {
     type Output = ();
@@ -3332,9 +3547,14 @@ impl<B: BlockT> Future for GossipHandler<B> {
         }
 
         // Process gossip notifications
-        while let Poll::Ready(Some(notification)) = self.gossip_handler_message_receiver.poll_next_unpin(cx) {
+        while let Poll::Ready(Some(notification)) =
+            self.gossip_handler_message_receiver.poll_next_unpin(cx)
+        {
             if notification.sender.is_none() {
-                log::info!("[TSS] Received notification without sender: {:?}", notification.message);
+                log::info!(
+                    "[TSS] Received notification without sender: {:?}",
+                    notification.message
+                );
                 continue;
             }
 
@@ -3344,14 +3564,16 @@ impl<B: BlockT> Future for GossipHandler<B> {
 
         // Process session manager messages
         while let Poll::Ready(Some(msg)) = self.session_manager_to_gossip_rx.poll_next_unpin(cx) {
-            if let Err(e) = process_session_manager_message(&mut *self, msg) {  // &mut *self is CORRECT here
+            if let Err(e) = process_session_manager_message(&mut *self, msg) {
+                // &mut *self is CORRECT here
                 log::warn!("[TSS] Error processing session manager message: {:?}", e);
             }
         }
 
         // Check if any channel has closed
-        if self.gossip_handler_message_receiver.is_terminated() ||
-            self.session_manager_to_gossip_rx.is_terminated() {
+        if self.gossip_handler_message_receiver.is_terminated()
+            || self.session_manager_to_gossip_rx.is_terminated()
+        {
             return Poll::Ready(());
         }
 
@@ -3360,151 +3582,151 @@ impl<B: BlockT> Future for GossipHandler<B> {
 }
 
 // impl<B: BlockT> Future for GossipHandler<B> {
-   // type Output = ();
+// type Output = ();
 
-    // fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-    //     loop {
-    //         match Pin::new(&mut self.gossip_engine).poll(cx) {
-    //             Poll::Ready(e) => e,
-    //             Poll::Pending => break,
-    //         }
-    //     }
+// fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+//     loop {
+//         match Pin::new(&mut self.gossip_engine).poll(cx) {
+//             Poll::Ready(e) => e,
+//             Poll::Pending => break,
+//         }
+//     }
 
-    //     loop {
-    //         match self.gossip_handler_message_receiver.poll_next_unpin(cx) {
-    //             Poll::Ready(Some(notification)) => {
-    //                 if let Some(sender) = notification.sender {
-    //                     if let Ok(message) = TssMessage::decode(&mut &notification.message[..]) {
-    //                         match message {
-    //                             TssMessage::Announce(_, _, _, _) => {
-    //                                 self.handle_announcment(sender, message);
-    //                             }
-    //                             _ => {
-    //                                 let _ = self
-    //                                     .gossip_to_session_manager_tx
-    //                                     .unbounded_send((sender, message));
-    //                             }
-    //                         }
-    //                     }
-    //                 } else {
-    //                     log::info!("[TSS] This is weird {:?}", notification.message);
-    //                 }
-    //             }
-    //             Poll::Ready(None) => return Poll::Ready(()),
-    //             Poll::Pending => break,
-    //         }
-    //     }
+//     loop {
+//         match self.gossip_handler_message_receiver.poll_next_unpin(cx) {
+//             Poll::Ready(Some(notification)) => {
+//                 if let Some(sender) = notification.sender {
+//                     if let Ok(message) = TssMessage::decode(&mut &notification.message[..]) {
+//                         match message {
+//                             TssMessage::Announce(_, _, _, _) => {
+//                                 self.handle_announcment(sender, message);
+//                             }
+//                             _ => {
+//                                 let _ = self
+//                                     .gossip_to_session_manager_tx
+//                                     .unbounded_send((sender, message));
+//                             }
+//                         }
+//                     }
+//                 } else {
+//                     log::info!("[TSS] This is weird {:?}", notification.message);
+//                 }
+//             }
+//             Poll::Ready(None) => return Poll::Ready(()),
+//             Poll::Pending => break,
+//         }
+//     }
 
-    //     loop {
-    //         match self.session_manager_to_gossip_rx.poll_next_unpin(cx) {
-    //             Poll::Ready(Some((recipient, message))) => match message {
-    //                 TssMessage::DKGRound1(id, bytes) => {
-    //                     if let Err(e) = self.broadcast_message(TssMessage::DKGRound1(id, bytes)) {
-    //                         log::error!("[TSS] Error broadcasting TssMessage::DKGRound1 for session_id {:?} with error {:?}", id, e);
-    //                     }
-    //                 }
-    //                 TssMessage::DKGRound2(id, bytes, recipient) => {
-    //                     if let Err(e) = self.send_message(
-    //                         TssMessage::DKGRound2(id, bytes, recipient.clone()),
-    //                         PeerId::from_bytes(&recipient[..]).unwrap(),
-    //                     ) {
-    //                         log::error!("[TSS] Error sending TssMessage::DKGRound2 for session_id {:?}, peer_id {:?} with error {:?}", id, recipient, e);
-    //                     }
-    //                 }
+//     loop {
+//         match self.session_manager_to_gossip_rx.poll_next_unpin(cx) {
+//             Poll::Ready(Some((recipient, message))) => match message {
+//                 TssMessage::DKGRound1(id, bytes) => {
+//                     if let Err(e) = self.broadcast_message(TssMessage::DKGRound1(id, bytes)) {
+//                         log::error!("[TSS] Error broadcasting TssMessage::DKGRound1 for session_id {:?} with error {:?}", id, e);
+//                     }
+//                 }
+//                 TssMessage::DKGRound2(id, bytes, recipient) => {
+//                     if let Err(e) = self.send_message(
+//                         TssMessage::DKGRound2(id, bytes, recipient.clone()),
+//                         PeerId::from_bytes(&recipient[..]).unwrap(),
+//                     ) {
+//                         log::error!("[TSS] Error sending TssMessage::DKGRound2 for session_id {:?}, peer_id {:?} with error {:?}", id, recipient, e);
+//                     }
+//                 }
 
-    //                 TssMessage::SigningPackage(id, bytes) => {
-    //                     if let Err(e) =
-    //                         self.send_message(TssMessage::SigningPackage(id, bytes), recipient)
-    //                     {
-    //                         log::error!("[TSS] Error sending TssMessage::SigningPackage for session_id {:?}, peer_id {:?} with error {:?}", id, recipient, e);
-    //                     }
-    //                 }
-    //                 TssMessage::SigningCommitment(id, bytes) => {
-    //                     if let Err(e) =
-    //                         self.send_message(TssMessage::SigningCommitment(id, bytes), recipient)
-    //                     {
-    //                         log::error!("[TSS] Error sending TssMessage::SigningCommitment for session_id {:?}, peer_id {:?} with error {:?}", id, recipient, e);
-    //                     }
-    //                 }
-    //                 TssMessage::SigningShare(id, bytes) => {
-    //                     if let Err(e) =
-    //                         self.send_message(TssMessage::SigningShare(id, bytes), recipient)
-    //                     {
-    //                         log::error!("[TSS] Error sending TssMessage::SigningShare for session_id {:?}, peer_id {:?} with error {:?}", id, recipient, e);
-    //                     }
-    //                 }
+//                 TssMessage::SigningPackage(id, bytes) => {
+//                     if let Err(e) =
+//                         self.send_message(TssMessage::SigningPackage(id, bytes), recipient)
+//                     {
+//                         log::error!("[TSS] Error sending TssMessage::SigningPackage for session_id {:?}, peer_id {:?} with error {:?}", id, recipient, e);
+//                     }
+//                 }
+//                 TssMessage::SigningCommitment(id, bytes) => {
+//                     if let Err(e) =
+//                         self.send_message(TssMessage::SigningCommitment(id, bytes), recipient)
+//                     {
+//                         log::error!("[TSS] Error sending TssMessage::SigningCommitment for session_id {:?}, peer_id {:?} with error {:?}", id, recipient, e);
+//                     }
+//                 }
+//                 TssMessage::SigningShare(id, bytes) => {
+//                     if let Err(e) =
+//                         self.send_message(TssMessage::SigningShare(id, bytes), recipient)
+//                     {
+//                         log::error!("[TSS] Error sending TssMessage::SigningShare for session_id {:?}, peer_id {:?} with error {:?}", id, recipient, e);
+//                     }
+//                 }
 
-    //                 TssMessage::ECDSAMessageBroadcast(session_id, index, bytes, phase)
-    //                 | TssMessage::ECDSAMessageSubset(session_id, index, bytes, phase) => {
-    //                     log::debug!(
-    //                         "[TSS] Sending message to all peers for session_id {:?} with phase {:?}",
-    //                         session_id,
-    //                         phase
-    //                     );
+//                 TssMessage::ECDSAMessageBroadcast(session_id, index, bytes, phase)
+//                 | TssMessage::ECDSAMessageSubset(session_id, index, bytes, phase) => {
+//                     log::debug!(
+//                         "[TSS] Sending message to all peers for session_id {:?} with phase {:?}",
+//                         session_id,
+//                         phase
+//                     );
 
-    //                     match phase {
-    //                         ECDSAPhase::Key => match self.broadcast_message(TssMessage::ECDSAMessageKeygen(
-    //                             session_id, index, bytes,
-    //                         )) {
-    //                             Err(error) => log::error!("[TSS] Error broadcasting TssMessage::ECDSAMessageKeygen for session_id {:?} with error {:?}", session_id, error),
-    //                             _ => ()
-    //                         },
-    //                         ECDSAPhase::Sign => match self.broadcast_message(TssMessage::ECDSAMessageSign(
-    //                             session_id, index, bytes,
-    //                         )) {
-    //                             Err(error) => log::error!("[TSS] Error broadcasting TssMessage::ECDSAMessageSign for session_id {:?} with error {:?}", session_id, error),
-    //                             _ => ()
-    //                         },
-    //                         ECDSAPhase::SignOnline => match self.broadcast_message(TssMessage::ECDSAMessageSignOnline(
-    //                             session_id, index, bytes,
-    //                         )) {
-    //                             Err(error) => log::error!("[TSS] Error broadcasting TssMessage::ECDSAMessageSignOnline for session_id {:?} with error {:?}", session_id, error),
-    //                             _ => ()
-    //                         },
-    //                     }
-    //                 }
-    //                 TssMessage::ECDSAMessageP2p(session_id, index, _peer_id, bytes, phase) => {
-    //                     log::debug!(
-    //                         "[TSS] Sending message to peer_id {:?} for session_id {:?}, phase is {:?}",
-    //                         recipient,
-    //                         session_id,
-    //                         phase
-    //                     );
+//                     match phase {
+//                         ECDSAPhase::Key => match self.broadcast_message(TssMessage::ECDSAMessageKeygen(
+//                             session_id, index, bytes,
+//                         )) {
+//                             Err(error) => log::error!("[TSS] Error broadcasting TssMessage::ECDSAMessageKeygen for session_id {:?} with error {:?}", session_id, error),
+//                             _ => ()
+//                         },
+//                         ECDSAPhase::Sign => match self.broadcast_message(TssMessage::ECDSAMessageSign(
+//                             session_id, index, bytes,
+//                         )) {
+//                             Err(error) => log::error!("[TSS] Error broadcasting TssMessage::ECDSAMessageSign for session_id {:?} with error {:?}", session_id, error),
+//                             _ => ()
+//                         },
+//                         ECDSAPhase::SignOnline => match self.broadcast_message(TssMessage::ECDSAMessageSignOnline(
+//                             session_id, index, bytes,
+//                         )) {
+//                             Err(error) => log::error!("[TSS] Error broadcasting TssMessage::ECDSAMessageSignOnline for session_id {:?} with error {:?}", session_id, error),
+//                             _ => ()
+//                         },
+//                     }
+//                 }
+//                 TssMessage::ECDSAMessageP2p(session_id, index, _peer_id, bytes, phase) => {
+//                     log::debug!(
+//                         "[TSS] Sending message to peer_id {:?} for session_id {:?}, phase is {:?}",
+//                         recipient,
+//                         session_id,
+//                         phase
+//                     );
 
-    //                     match phase {
-    //                         ECDSAPhase::Key => match self.send_message(
-    //                             TssMessage::ECDSAMessageKeygen(session_id, index, bytes),
-    //                             recipient,
-    //                         ) {
-    //                             Err(error) => log::error!("[TSS] Error sending message to TssMessage::ECDSAMessageKeygen for session_id {:?} with error {:?}", session_id, error),
-    //                             _ => ()
-    //                         },
-    //                         ECDSAPhase::Sign => match self.send_message(
-    //                             TssMessage::ECDSAMessageSign(session_id, index, bytes),
-    //                             recipient,
-    //                         ) {
-    //                             Err(error) => log::error!("[TSS] Error sending message to TssMessage::ECDSAMessageSign for session_id {:?} with error {:?}", session_id, error),
-    //                             _ => ()
-    //                         },
-    //                         ECDSAPhase::SignOnline => match self.send_message(
-    //                             TssMessage::ECDSAMessageSignOnline(session_id, index, bytes),
-    //                             recipient,
-    //                         ) {
-    //                             Err(error) => log::error!("[TSS] Error sending message to TssMessage::ECDSAMessageSignOnline for session_id {:?} with error {:?}", session_id, error),
-    //                             _ => ()
-    //                         },
-    //                     }
-    //                 }
-    //                 _ => (),
-    //             },
-    //             Poll::Ready(None) => return Poll::Ready(()),
-    //             Poll::Pending => break,
-    //         }
-    //     }
+//                     match phase {
+//                         ECDSAPhase::Key => match self.send_message(
+//                             TssMessage::ECDSAMessageKeygen(session_id, index, bytes),
+//                             recipient,
+//                         ) {
+//                             Err(error) => log::error!("[TSS] Error sending message to TssMessage::ECDSAMessageKeygen for session_id {:?} with error {:?}", session_id, error),
+//                             _ => ()
+//                         },
+//                         ECDSAPhase::Sign => match self.send_message(
+//                             TssMessage::ECDSAMessageSign(session_id, index, bytes),
+//                             recipient,
+//                         ) {
+//                             Err(error) => log::error!("[TSS] Error sending message to TssMessage::ECDSAMessageSign for session_id {:?} with error {:?}", session_id, error),
+//                             _ => ()
+//                         },
+//                         ECDSAPhase::SignOnline => match self.send_message(
+//                             TssMessage::ECDSAMessageSignOnline(session_id, index, bytes),
+//                             recipient,
+//                         ) {
+//                             Err(error) => log::error!("[TSS] Error sending message to TssMessage::ECDSAMessageSignOnline for session_id {:?} with error {:?}", session_id, error),
+//                             _ => ()
+//                         },
+//                     }
+//                 }
+//                 _ => (),
+//             },
+//             Poll::Ready(None) => return Poll::Ready(()),
+//             Poll::Pending => break,
+//         }
+//     }
 
-    //     Poll::Pending
-    // }
-    // Main poll method
+//     Poll::Pending
+// }
+// Main poll method
 // }
 // ===== Main Setup Function =====
 
@@ -3532,14 +3754,14 @@ where
 
     if validator_key.is_none() {
         log::warn!("[TSS] No validator key found in keystore. Starting empty TSS thread.");
-        // Return an empty thread 
+        // Return an empty thread
         return Ok(Box::pin(async {
             loop {
                 sleep(Duration::from_secs(3600));
             }
         }));
-    }    
-    
+    }
+
     let validator_key = validator_key.unwrap().0.to_vec();
     let validator_key_clone = validator_key.clone();
     let local_peer_id = network.local_peer_id();
@@ -3550,7 +3772,7 @@ where
             .unwrap()
             .to_ss58check_with_version(Ss58AddressFormat::custom(87))
     );
-    
+
     // Create announcement message
     let announcement = if let Some(signature) = sign_announcment(
         &keystore_container,
@@ -3569,7 +3791,10 @@ where
         None
     };
 
-    let gossip_validator = Arc::new(TssValidator::new(Duration::from_secs(120), announcement.clone()));
+    let gossip_validator = Arc::new(TssValidator::new(
+        Duration::from_secs(120),
+        announcement.clone(),
+    ));
 
     // Set up communication channels
     let (gossip_to_session_manager_tx, gossip_to_session_manager_rx) =
@@ -3604,11 +3829,8 @@ where
         handle.add_peer(local_peer_id.clone(), validator_key.clone());
     }
 
-    log::info!(
-        "[TSS] Local peer ID: {:?}",
-        local_peer_id.to_base58()
-    );
-    
+    log::info!("[TSS] Local peer ID: {:?}", local_peer_id.to_base58());
+
     // ===== GossipHandler Setup =====
     let mut gossip_engine = GossipEngine::new(
         network.clone(),
@@ -3639,7 +3861,7 @@ where
             log::info!("[TSS] Announcement broadcasted successfully");
         }
     }
-    
+
     // ===== RuntimeEventHandler Setup =====
     let runtime_event_handler =
         RuntimeEventHandler::<B, C>::new(client.clone(), runtime_to_session_manager_tx);
@@ -3659,7 +3881,7 @@ where
         session_manager_to_gossip_tx,
         local_peer_id.to_bytes(),
     );
-    
+
     // Configure session timeout (default is 1 hour, make it 2 hours for production)
     session_manager.session_timeout = 7200; // 2 hours in seconds
 
@@ -3679,7 +3901,9 @@ where
 
 pub fn get_active_validators() {}
 
-pub fn get_validator_key_from_keystore(keystore: &KeystoreContainer) -> Option<sp_core::sr25519::Public>{
+pub fn get_validator_key_from_keystore(
+    keystore: &KeystoreContainer,
+) -> Option<sp_core::sr25519::Public> {
     keystore
         .keystore()
         .sr25519_public_keys(UOMI)

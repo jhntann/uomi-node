@@ -1,4 +1,4 @@
-use frame_support::{ parameter_types, BoundedVec };
+use frame_support::{parameter_types, BoundedVec};
 use frame_system::pallet_prelude::BlockNumberFor;
 
 use sp_core::U256;

@@ -20,7 +20,6 @@
 
 use super::*;
 use crate as pallet_unified_accounts;
-use uomi_primitives::evm::HashedDefaultMappings;
 use frame_support::{
     construct_runtime, parameter_types,
     traits::{ConstU64, FindAuthor},
@@ -34,6 +33,7 @@ use sp_runtime::{
     traits::{AccountIdLookup, BlakeTwo256},
     AccountId32, BuildStorage, ConsensusEngineId,
 };
+use uomi_primitives::evm::HashedDefaultMappings;
 
 parameter_types! {
     pub BlockWeights: frame_system::limits::BlockWeights =

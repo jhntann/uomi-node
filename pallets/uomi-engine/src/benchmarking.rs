@@ -13,14 +13,8 @@ mod benchmarks {
         let caller: T::AccountId = whitelisted_caller();
 
         #[extrinsic_call]
-        temporary_function(
-            RawOrigin::None
-        );
+        temporary_function(RawOrigin::None);
     }
 
-    impl_benchmark_test_suite!(
-        Pallet,
-        crate::mock::new_test_ext(),
-        crate::mock::Test
-    );
+    impl_benchmark_test_suite!(Pallet, crate::mock::new_test_ext(), crate::mock::Test);
 }

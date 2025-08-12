@@ -18,7 +18,6 @@
 
 //! Uomi library.
 
-
 #![warn(unused_extern_crates)]
 
 /// Development node support.
@@ -33,9 +32,9 @@ pub mod uomi;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
-mod consensus_data_provider;
 mod cli;
 mod command;
+mod consensus_data_provider;
 mod evm_tracing_types;
 mod rpc;
 

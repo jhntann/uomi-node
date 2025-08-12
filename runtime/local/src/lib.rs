@@ -1322,7 +1322,7 @@ impl pallet_uomi_engine::ipfs::IpfsInterface<Runtime> for IpfsWrapper {
 impl pallet_tss::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type MaxNumberOfShares = pallet_tss::types::MaxNumberOfShares;
-    
+
     type SignatureVerifier = pallet_tss::pallet::Verifier;
     type AuthorityId = pallet_tss::crypto::AuthId;
 }
@@ -2584,7 +2584,7 @@ impl_runtime_apis! {
                 if session.old_participants.is_none() {
                     return Vec::new();
                 }
-                
+
                 let old_participants = session.old_participants.unwrap();
 
                 for el in old_participants.into_iter() {
@@ -2602,11 +2602,11 @@ impl_runtime_apis! {
             // Call the pallet function
             pallet_tss::pallet::Pallet::<Runtime>::get_validator_id(&account)
         }
-        
+
         fn get_validator_by_id(id: u32) -> Option<[u8; 32]> {
             pallet_tss::pallet::Pallet::<Runtime>::get_validator_from_id(id).map(|account| account.into())
         }
-        
+
         fn get_all_validator_ids() -> Vec<(u32, [u8; 32])> {
             // Collect all validator ID mappings
             pallet_tss::pallet::ValidatorIds::<Runtime>::iter()

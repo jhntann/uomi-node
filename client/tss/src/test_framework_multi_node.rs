@@ -795,7 +795,11 @@ mod tests {
                     .key_storage
                     .lock()
                     .unwrap()
-                    .read_data(session_id, StorageType::EcdsaKeys, Some(&identifier.serialize()))
+                    .read_data(
+                        session_id,
+                        StorageType::EcdsaKeys,
+                        Some(&identifier.serialize())
+                    )
                     .is_ok(),
                 true
             );
@@ -975,7 +979,11 @@ mod tests {
                     .key_storage
                     .lock()
                     .unwrap()
-                    .read_data(session_id, StorageType::EcdsaOnlineOutput, Some(&_id.serialize()))
+                    .read_data(
+                        session_id,
+                        StorageType::EcdsaOnlineOutput,
+                        Some(&_id.serialize())
+                    )
                     .is_ok(),
                 true
             );
@@ -985,7 +993,11 @@ mod tests {
                     .key_storage
                     .lock()
                     .unwrap()
-                    .read_data(session_id, StorageType::EcdsaOnlineOutput, Some(&_id.serialize()))
+                    .read_data(
+                        session_id,
+                        StorageType::EcdsaOnlineOutput,
+                        Some(&_id.serialize()),
+                    )
                     .unwrap(),
             );
         }
@@ -999,7 +1011,6 @@ mod tests {
             );
         }
     }
-
 
     #[test]
     fn test_signing_session_after_dkg_and_reshare() {
@@ -1033,7 +1044,6 @@ mod tests {
             assert_eq!(*state.unwrap(), DKGSessionState::KeyGenerated);
         }
 
-
         for (_, node) in network.nodes_mut() {
             let event = TSSRuntimeEvent::DKGReshareSessionInfoReady(
                 dkg_session_id,
@@ -1048,8 +1058,6 @@ mod tests {
         let messages = network.process_round(); // Here each member sends its material to the coordinator
         assert_eq!(messages.len(), 9, "Reshare, We expect only 6 messages");
         let _messages = network.process_all_rounds();
-
-
 
         // --- 2. Initiate Signing Session ---
         let signing_session_id: SessionId = session_id;
@@ -1179,7 +1187,11 @@ mod tests {
                     .key_storage
                     .lock()
                     .unwrap()
-                    .read_data(session_id, StorageType::EcdsaOnlineOutput, Some(&_id.serialize()))
+                    .read_data(
+                        session_id,
+                        StorageType::EcdsaOnlineOutput,
+                        Some(&_id.serialize())
+                    )
                     .is_ok(),
                 true
             );
@@ -1189,7 +1201,11 @@ mod tests {
                     .key_storage
                     .lock()
                     .unwrap()
-                    .read_data(session_id, StorageType::EcdsaOnlineOutput, Some(&_id.serialize()))
+                    .read_data(
+                        session_id,
+                        StorageType::EcdsaOnlineOutput,
+                        Some(&_id.serialize()),
+                    )
                     .unwrap(),
             );
         }

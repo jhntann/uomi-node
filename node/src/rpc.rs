@@ -22,15 +22,20 @@ use fc_rpc::{
     Eth, EthApiServer, EthBlockDataCacheTask, EthFilter, EthFilterApiServer, EthPubSub,
     EthPubSubApiServer, Net, NetApiServer, OverrideHandle, Web3, Web3ApiServer,
 };
+use fc_rpc_core::types::{FeeHistoryCache, FilterPool};
+use jsonrpsee::RpcModule;
 use sc_consensus_grandpa::{
     FinalityProofProvider, GrandpaJustificationStream, SharedAuthoritySet, SharedVoterState,
 };
-use fc_rpc_core::types::{FeeHistoryCache, FilterPool};
-use jsonrpsee::RpcModule;
 
+#[cfg(feature = "evm-tracing")]
+use moonbeam_rpc_debug::{Debug, DebugServer};
+#[cfg(feature = "evm-tracing")]
+use moonbeam_rpc_trace::{Trace, TraceServer};
 use sc_client_api::{
     AuxStore, Backend, BlockchainEvents, StateBackend, StorageProvider, UsageProvider,
 };
+use sc_consensus_babe::BabeWorkerHandle;
 use sc_network::NetworkService;
 use sc_network_sync::SyncingService;
 use sc_rpc::dev::DevApiServer;
@@ -42,16 +47,11 @@ use sp_block_builder::BlockBuilder;
 use sp_blockchain::{
     Backend as BlockchainBackend, Error as BlockChainError, HeaderBackend, HeaderMetadata,
 };
-use sp_keystore::KeystorePtr;
 use sp_consensus_babe::BabeApi;
+use sp_inherents::CreateInherentDataProviders;
+use sp_keystore::KeystorePtr;
 use sp_runtime::traits::BlakeTwo256;
 use std::sync::Arc;
-use sp_inherents::CreateInherentDataProviders;
-use sc_consensus_babe::BabeWorkerHandle;
-#[cfg(feature = "evm-tracing")]
-use moonbeam_rpc_debug::{Debug, DebugServer};
-#[cfg(feature = "evm-tracing")]
-use moonbeam_rpc_trace::{Trace, TraceServer};
 // TODO: get rid of this completely now that it's part of frontier?
 #[cfg(feature = "evm-tracing")]
 use moonbeam_rpc_txpool::{TxPool as MoonbeamTxPool, TxPoolServer};
@@ -69,7 +69,6 @@ pub struct EvmTracingConfig {
     pub trace_filter_max_count: u32,
     pub enable_txpool: bool,
 }
-
 
 // TODO This is copied from frontier. It should be imported instead after
 // https://github.com/paritytech/frontier/issues/333 is solved
@@ -174,7 +173,6 @@ pub struct FullDeps<C, P, BE, A: ChainApi, SC, CIDP> {
     pub command_sink:
         Option<futures::channel::mpsc::Sender<sc_consensus_manual_seal::EngineCommand<Hash>>>,
 }
-
 
 /// Instantiate all RPC extensions and Tracing RPC.
 #[cfg(feature = "evm-tracing")]
@@ -343,13 +341,16 @@ where
         block_data_cache,
         enable_evm_rpc,
         pending_create_inherent_data_providers,
-        babe, 
+        babe,
         grandpa,
         #[cfg(feature = "manual-seal")]
         command_sink,
     } = deps;
 
-    let BabeDeps { keystore, worker_handle } = babe;
+    let BabeDeps {
+        keystore,
+        worker_handle,
+    } = babe;
     let GrandpaDeps {
         shared_voter_state,
         shared_authority_set,
@@ -360,7 +361,16 @@ where
 
     io.merge(System::new(client.clone(), pool.clone(), deny_unsafe).into_rpc())?;
     io.merge(TransactionPayment::new(client.clone()).into_rpc())?;
-    io.merge(Babe::new(client.clone(), worker_handle, keystore, select_chain, deny_unsafe).into_rpc())?;
+    io.merge(
+        Babe::new(
+            client.clone(),
+            worker_handle,
+            keystore,
+            select_chain,
+            deny_unsafe,
+        )
+        .into_rpc(),
+    )?;
     io.merge(sc_rpc::dev::Dev::new(client.clone(), deny_unsafe).into_rpc())?;
     io.merge(
         Grandpa::new(
@@ -384,7 +394,7 @@ where
     }
 
     let no_tx_converter: Option<fp_rpc::NoTransactionConverter> = None;
-    
+
     io.merge(
         Eth::<_, _, _, _, _, _, _, ()>::new(
             client.clone(),
@@ -404,7 +414,6 @@ where
             None,
             pending_create_inherent_data_providers,
             Some(Box::new(BabeConsensusDataProvider::new()) as Box<dyn ConsensusDataProvider<_>>),
-          
         )
         .replace_config::<UomiEthConfig<C, BE>>()
         .into_rpc(),

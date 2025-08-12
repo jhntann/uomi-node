@@ -145,12 +145,12 @@ pub mod pallet {
 			let weight_used =
 				Permill::from_rational(weight.total().ref_time(), max_weight.ref_time())
 					.clamp(lower, upper);
-            
+
 			// After clamp `weighted_used` is always between `lower` and `upper`.
 			// We scale the block fullness range to the lower/upper range, and the usage represents the
 			// actual percentage within this new scale.
 			let usage = (weight_used - lower) / (upper - lower);
-          
+
 
 			// Target is our ideal block fullness.
 			let target = T::Threshold::ideal();

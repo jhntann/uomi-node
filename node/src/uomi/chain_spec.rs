@@ -18,23 +18,21 @@
 
 //! Chain specifications.
 
-use uomi_runtime::{
-    wasm_binary_unwrap, AccountId, BabeConfig, BalancesConfig,
-    CommunityCouncilMembershipConfig, CommunityTreasuryPalletId, CouncilMembershipConfig,
-    EVMConfig, GrandpaId,
-    Precompiles, RuntimeGenesisConfig, Signature, SudoConfig,
-    TechnicalCommitteeMembershipConfig, TreasuryPalletId, VestingConfig, UOMI, ElectionsConfig,
-    StakerStatus, SessionConfig, StakingConfig, SessionKeys, MaxNominators, NominationPoolsConfig
-};
-use sp_consensus_babe::AuthorityId as BabeId;
+use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use sc_service::ChainType;
+use sp_consensus_babe::AuthorityId as BabeId;
 use sp_core::{crypto::Ss58Codec, sr25519, Pair, Public};
 use sp_runtime::traits::{AccountIdConversion, IdentifyAccount, Verify};
 use sp_runtime::Perbill;
-use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
+use uomi_runtime::{
+    wasm_binary_unwrap, AccountId, BabeConfig, BalancesConfig, CommunityCouncilMembershipConfig,
+    CommunityTreasuryPalletId, CouncilMembershipConfig, EVMConfig, ElectionsConfig, GrandpaId,
+    MaxNominators, NominationPoolsConfig, Precompiles, RuntimeGenesisConfig, SessionConfig,
+    SessionKeys, Signature, StakerStatus, StakingConfig, SudoConfig,
+    TechnicalCommitteeMembershipConfig, TreasuryPalletId, VestingConfig, UOMI,
+};
 
 type AccountPublic = <Signature as Verify>::Signer;
-
 
 pub type ChainSpec = sc_service::GenericChainSpec<uomi_runtime::RuntimeGenesisConfig>;
 
@@ -54,19 +52,17 @@ where
 }
 
 /// Generate an babe authority key.
-pub fn authority_keys_from_account_id(s: &str) -> (AccountId, AccountId, BabeId, GrandpaId, ImOnlineId) {
+pub fn authority_keys_from_account_id(
+    s: &str,
+) -> (AccountId, AccountId, BabeId, GrandpaId, ImOnlineId) {
     (
-        AccountId::from_ss58check(s)
-                    .unwrap(),
-        AccountId::from_ss58check(s)
-        .unwrap(),
+        AccountId::from_ss58check(s).unwrap(),
+        AccountId::from_ss58check(s).unwrap(),
         get_from_seed::<BabeId>(s),
         get_from_seed::<GrandpaId>(s),
         get_from_seed::<ImOnlineId>(s),
     )
-
 }
-
 
 pub fn mainnet_config() -> ChainSpec {
     let mut properties = serde_json::map::Map::new();
@@ -78,10 +74,11 @@ pub fn mainnet_config() -> ChainSpec {
         .with_chain_type(ChainType::Live)
         .with_properties(properties)
         .with_genesis_config(mainnet_genesis(
-            vec![authority_keys_from_account_id("5FcWszuUKqeHNbwFZAs5Ebn47p6pn4trjQWrvYapzKpzEeNf")],
+            vec![authority_keys_from_account_id(
+                "5FcWszuUKqeHNbwFZAs5Ebn47p6pn4trjQWrvYapzKpzEeNf",
+            )],
             vec![],
-            AccountId::from_ss58check("5FcWszuUKqeHNbwFZAs5Ebn47p6pn4trjQWrvYapzKpzEeNf")
-                    .unwrap(),
+            AccountId::from_ss58check("5FcWszuUKqeHNbwFZAs5Ebn47p6pn4trjQWrvYapzKpzEeNf").unwrap(),
             vec![
                 TreasuryPalletId::get().into_account_truncating(),
                 CommunityTreasuryPalletId::get().into_account_truncating(),
@@ -89,18 +86,17 @@ pub fn mainnet_config() -> ChainSpec {
                     .unwrap(),
                 AccountId::from_ss58check("5HE5xbzvjvyyag8efCgW7ewNWMqKT8XXX47eoTZXoXJk7DD4")
                     .unwrap(),
-
             ],
         ))
         .build()
 }
 
-fn session_keys(
-	grandpa: GrandpaId,
-	babe: BabeId,
-	im_online: ImOnlineId,
-) -> SessionKeys {
-	SessionKeys { grandpa, babe, im_online }
+fn session_keys(grandpa: GrandpaId, babe: BabeId, im_online: ImOnlineId) -> SessionKeys {
+    SessionKeys {
+        grandpa,
+        babe,
+        im_online,
+    }
 }
 
 fn mainnet_genesis(
@@ -110,40 +106,45 @@ fn mainnet_genesis(
     endowed_accounts: Vec<AccountId>,
 ) -> serde_json::Value {
     let accounts: Vec<AccountId> = vec![
-    AccountId::from_ss58check("5FcWszuUKqeHNbwFZAs5Ebn47p6pn4trjQWrvYapzKpzEeNf")
-        .unwrap(),
-    AccountId::from_ss58check("5HE5xbzvjvyyag8efCgW7ewNWMqKT8XXX47eoTZXoXJk7DD4")
-        .unwrap(),
-    AccountId::from_ss58check("5DHkfED8VP9poXP2dG1EvjFw6PJGqfAfCGuZKCLgHk85YGiz")
-        .unwrap(),
-    AccountId::from_ss58check("5HjTPbXDpy9SCzVcg1nFdHwYqYqf1u6Xz7qmHPTWUHjT72qm")
-        .unwrap(),
-    AccountId::from_ss58check("5D2fDsaFNw21izVpVSndDcLuGcVgA1cGLBKDDBokKivJkJAo")
-        .unwrap()
-        ];
+        AccountId::from_ss58check("5FcWszuUKqeHNbwFZAs5Ebn47p6pn4trjQWrvYapzKpzEeNf").unwrap(),
+        AccountId::from_ss58check("5HE5xbzvjvyyag8efCgW7ewNWMqKT8XXX47eoTZXoXJk7DD4").unwrap(),
+        AccountId::from_ss58check("5DHkfED8VP9poXP2dG1EvjFw6PJGqfAfCGuZKCLgHk85YGiz").unwrap(),
+        AccountId::from_ss58check("5HjTPbXDpy9SCzVcg1nFdHwYqYqf1u6Xz7qmHPTWUHjT72qm").unwrap(),
+        AccountId::from_ss58check("5D2fDsaFNw21izVpVSndDcLuGcVgA1cGLBKDDBokKivJkJAo").unwrap(),
+    ];
 
-
-
-    const INITIAL_STAKING: u128 =   1_000_000 * 1_000_000_000_000_000_000;
+    const INITIAL_STAKING: u128 = 1_000_000 * 1_000_000_000_000_000_000;
 
     let mut rng = rand::thread_rng();
 
     let stakers = initial_authorities
-    .iter()
-    .map(|x| (x.0.clone(), x.1.clone(), INITIAL_STAKING, StakerStatus::Validator))
-    .chain(initial_nominators.iter().map(|x| {
-        use rand::{seq::SliceRandom, Rng};
-        let limit = (MaxNominators::get() as usize).min(initial_authorities.len());
-        let count = rng.gen::<usize>() % limit;
-        let nominations = initial_authorities
-            .as_slice()
-            .choose_multiple(&mut rng, count)
-            .map(|choice| choice.0.clone())
-            .collect::<Vec<_>>();
-        (x.clone(), x.clone(), INITIAL_STAKING, StakerStatus::Nominator(nominations))
-    }))
-    .collect::<Vec<_>>();
-    
+        .iter()
+        .map(|x| {
+            (
+                x.0.clone(),
+                x.1.clone(),
+                INITIAL_STAKING,
+                StakerStatus::Validator,
+            )
+        })
+        .chain(initial_nominators.iter().map(|x| {
+            use rand::{seq::SliceRandom, Rng};
+            let limit = (MaxNominators::get() as usize).min(initial_authorities.len());
+            let count = rng.gen::<usize>() % limit;
+            let nominations = initial_authorities
+                .as_slice()
+                .choose_multiple(&mut rng, count)
+                .map(|choice| choice.0.clone())
+                .collect::<Vec<_>>();
+            (
+                x.clone(),
+                x.clone(),
+                INITIAL_STAKING,
+                StakerStatus::Nominator(nominations),
+            )
+        }))
+        .collect::<Vec<_>>();
+
     // Verifica che il vettore stakers non sia vuoto
 
     // This is supposed the be the simplest bytecode to revert without returning any data.
@@ -162,9 +163,9 @@ fn mainnet_genesis(
         },
         vesting: VestingConfig { vesting: vec![] },
         babe: BabeConfig {
-			epoch_config: uomi_runtime::BABE_GENESIS_EPOCH_CONFIG,
-			..Default::default()
-		},
+            epoch_config: uomi_runtime::BABE_GENESIS_EPOCH_CONFIG,
+            ..Default::default()
+        },
         grandpa: Default::default(),
         evm: EVMConfig {
             // We need _some_ code inserted at the precompile address so that
@@ -212,31 +213,31 @@ fn mainnet_genesis(
             phantom: Default::default(),
         },
         nomination_pools: NominationPoolsConfig {
-			min_create_bond: 10 * 1_000 * 1_000 * 1_000_000_000_000,
-			min_join_bond: 1_000 * 1_000 * 1_000_000_000_000,
-			..Default::default()
-		},
+            min_create_bond: 10 * 1_000 * 1_000 * 1_000_000_000_000,
+            min_join_bond: 1_000 * 1_000 * 1_000_000_000_000,
+            ..Default::default()
+        },
         elections: ElectionsConfig::default(),
         session: SessionConfig {
-			keys: initial_authorities
-				.iter()
-				.map(|x| {
-					(
-						x.0.clone(),
-						x.0.clone(),
-						session_keys(x.3.clone(), x.2.clone(),  x.4.clone()),
-					)
-				})
-				.collect::<Vec<_>>(),
-		},
-		staking: StakingConfig {
-			validator_count: initial_authorities.len() as u32,
-			minimum_validator_count: initial_authorities.len() as u32,
-			invulnerables: initial_authorities.iter().map(|x| x.0.clone()).collect(),
-			slash_reward_fraction: Perbill::from_percent(10),
-			stakers,
-			..Default::default()
-		},
+            keys: initial_authorities
+                .iter()
+                .map(|x| {
+                    (
+                        x.0.clone(),
+                        x.0.clone(),
+                        session_keys(x.3.clone(), x.2.clone(), x.4.clone()),
+                    )
+                })
+                .collect::<Vec<_>>(),
+        },
+        staking: StakingConfig {
+            validator_count: initial_authorities.len() as u32,
+            minimum_validator_count: initial_authorities.len() as u32,
+            invulnerables: initial_authorities.iter().map(|x| x.0.clone()).collect(),
+            slash_reward_fraction: Perbill::from_percent(10),
+            stakers,
+            ..Default::default()
+        },
         council: Default::default(),
         technical_committee: Default::default(),
         community_council: Default::default(),

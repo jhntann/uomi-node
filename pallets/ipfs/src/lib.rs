@@ -1,4 +1,8 @@
 #![cfg_attr(not(feature = "std"), no_std)]
+#![allow(deprecated)]
+#![allow(clippy::type_complexity)]
+#![allow(clippy::useless_conversion)]
+#![allow(clippy::manual_inspect)]
 
 #[cfg(test)]
 mod mock;
@@ -36,7 +40,6 @@ use frame_system::{
 use sp_core::offchain::KeyTypeId;
 use sp_core::U256;
 use sp_runtime::traits::AtLeast32BitUnsigned;
-use sp_runtime::traits::Convert;
 use sp_runtime::traits::{IdentifyAccount, Saturating, UniqueSaturatedInto};
 use sp_runtime::{DispatchError, DispatchResult};
 use sp_std::marker::PhantomData;
@@ -271,7 +274,7 @@ pub mod pallet {
 
                     ValidTransaction::with_tag_prefix("IpfsPallet")
                         .priority(TransactionPriority::MAX)
-                        .and_provides(&call)
+                        .and_provides(call)
                         .longevity(64)
                         .propagate(true)
                         .build()
@@ -327,7 +330,7 @@ pub mod pallet {
             CidsStatus::<T>::insert(&cid, (U256::zero(), U256::zero()));
             log::info!(
                 "IPFS: CID status after insert: {:?}",
-                CidsStatus::<T>::get(&cid)
+                CidsStatus::<T>::get(cid)
             );
 
             Self::deposit_event(Event::IpfsOperationSuccess {
@@ -363,10 +366,10 @@ pub mod pallet {
 
             if CidsStatus::<T>::contains_key(&cid) {
                 CidsStatus::<T>::mutate(&cid, |(expires_at, _usable_from)| {
-                    if (new_expires_at.into() > *expires_at) {
+                    if new_expires_at.into() > *expires_at {
                         *expires_at = new_expires_at.into();
                     } else {
-                        *expires_at = expires_at.clone();
+                        *expires_at = *expires_at;
                     }
                 });
             } else {
@@ -451,7 +454,7 @@ pub mod pallet {
                 //if expired, remove from cidstatus
                 CidsStatus::<T>::remove(cid);
                 //in nodesPins remove prefix of the cid
-                NodesPins::<T>::remove_prefix(cid, None);
+                NodesPins::<T>::clear_prefix(cid, None);
             }
 
             InherentDidUpdate::<T>::set(true);
@@ -513,9 +516,7 @@ pub mod pallet {
                         return Err(InherentError::InvalidInherentValue);
                     }
                     for (cid, (expires_at, usable_from)) in usable.iter() {
-                        if !expected_usable
-                            .contains(&(cid.clone(), (expires_at.clone(), usable_from.clone())))
-                        {
+                        if !expected_usable.contains(&(cid.clone(), (*expires_at, *usable_from))) {
                             return Err(InherentError::InvalidInherentValue);
                         }
                     }
@@ -525,8 +526,7 @@ pub mod pallet {
                         return Err(InherentError::InvalidInherentValue);
                     }
                     for (cid, (expires_at, usable_from)) in to_remove.iter() {
-                        if !expected_to_remove
-                            .contains(&(cid.clone(), (expires_at.clone(), usable_from.clone())))
+                        if !expected_to_remove.contains(&(cid.clone(), (*expires_at, *usable_from)))
                         {
                             return Err(InherentError::InvalidInherentValue);
                         }
@@ -551,7 +551,7 @@ pub mod pallet {
 
         fn get_account_id() -> Result<T::AccountId, DispatchError> {
             let public_keys = sp_io::crypto::sr25519_public_keys(CRYPTO_KEY_TYPE);
-            let public_key = match public_keys.get(0) {
+            let public_key = match public_keys.first() {
                 Some(public_key) => public_key,
                 None => {
                     log::info!(
@@ -760,7 +760,7 @@ pub mod pallet {
         pub fn get_file(cid: &Cid) -> Result<Vec<u8>, sp_runtime::offchain::http::Error> {
             log::info!("IPFS: Getting file from CID: {:?}", cid);
             // Check if it's expired (or if it never expires) and check if it's usable
-            let (expires_at, usable_from) = CidsStatus::<T>::get(&cid);
+            let (expires_at, usable_from) = CidsStatus::<T>::get(cid);
             let current_block = frame_system::Pallet::<T>::block_number();
 
             //if expire_at is 0, it means it's a persistent pin, otherwise it's a temporary pin to check if it's expired
@@ -775,7 +775,7 @@ pub mod pallet {
             }
             log::info!("IPFS: CID is usable");
 
-            Self::get_file_from_cid(&cid)
+            Self::get_file_from_cid(cid)
         }
 
         fn get_file_from_cid(cid: &Cid) -> Result<Vec<u8>, sp_runtime::offchain::http::Error> {

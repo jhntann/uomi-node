@@ -49,7 +49,7 @@ where
     fn created(id: &AssetId, _: &AccountId) -> Result<(), ()> {
         let address = A::asset_id_to_address(*id);
         // In case of collision, we need to cancel the asset creation.
-        ensure!(!pallet_evm::AccountCodes::<R>::contains_key(&address), ());
+        ensure!(!pallet_evm::AccountCodes::<R>::contains_key(address), ());
         pallet_evm::AccountCodes::<R>::insert(address, EVM_REVERT_CODE.to_vec());
         Ok(())
     }
@@ -73,7 +73,7 @@ pub trait UnifiedAddressMapper<AccountId> {
         Self::to_account_id(evm_address).map_or_else(
             // fallback to default account_id
             || UnifiedAddress::Default(Self::to_default_account_id(evm_address)),
-            |a| UnifiedAddress::Mapped(a),
+            UnifiedAddress::Mapped,
         )
     }
     /// Gets the default account id which is associated with given evm address.
@@ -89,7 +89,7 @@ pub trait UnifiedAddressMapper<AccountId> {
         Self::to_h160(account_id).map_or_else(
             // fallback to default account_id
             || UnifiedAddress::Default(Self::to_default_h160(account_id)),
-            |a| UnifiedAddress::Mapped(a),
+            UnifiedAddress::Mapped,
         )
     }
 
@@ -101,7 +101,7 @@ pub trait UnifiedAddressMapper<AccountId> {
 pub struct HashedDefaultMappings<H>(PhantomData<H>);
 impl<H: Hasher<Out = H256>> UnifiedAddressMapper<AccountId> for HashedDefaultMappings<H> {
     fn to_default_account_id(evm_address: &EvmAddress) -> AccountId {
-        HashedAddressMapping::<H>::into_account_id(evm_address.clone())
+        HashedAddressMapping::<H>::into_account_id(*evm_address)
     }
 
     fn to_default_h160(account_id: &AccountId) -> EvmAddress {

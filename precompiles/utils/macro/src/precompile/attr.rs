@@ -30,7 +30,8 @@ where
         attr.path
             .segments
             .first()
-            .is_some_and(false, |segment| segment.ident == "precompile")
+            // use is_some_and for clearer Option check
+            .is_some_and(|segment| segment.ident == "precompile")
     };
 
     while let Some(index) = attributes.iter().position(pred) {
@@ -55,6 +56,7 @@ pub mod keyword {
 }
 
 /// Attributes for methods.
+#[allow(dead_code)] // silence: some Spans are not read but kept for diagnostics/consistency
 pub enum MethodAttr {
     Public(Span, syn::LitStr),
     Fallback(Span),
@@ -123,9 +125,9 @@ impl syn::parse::Parse for ImplAttr {
         let lookahead = content.lookahead1();
 
         if lookahead.peek(keyword::precompile_set) {
-            Ok(ImplAttr::PrecompileSet(
-                content.parse::<keyword::precompile_set>()?.span(),
-            ))
+            // consume the `precompile_set` token, but we no longer carry its Span
+            let _ = content.parse::<keyword::precompile_set>()?;
+            Ok(ImplAttr::PrecompileSet(()))
         } else if lookahead.peek(keyword::test_concrete_types) {
             let span = content.parse::<keyword::test_concrete_types>()?.span();
 

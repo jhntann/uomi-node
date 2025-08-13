@@ -240,7 +240,7 @@ pub trait PrecompileTesterExt: PrecompileSet + Sized {
         from: impl Into<H160>,
         to: impl Into<H160>,
         data: impl Into<Vec<u8>>,
-    ) -> PrecompilesTester<Self>;
+    ) -> PrecompilesTester<'_, Self>;
 }
 
 impl<T: PrecompileSet> PrecompileTesterExt for T {
@@ -249,7 +249,7 @@ impl<T: PrecompileSet> PrecompileTesterExt for T {
         from: impl Into<H160>,
         to: impl Into<H160>,
         data: impl Into<Vec<u8>>,
-    ) -> PrecompilesTester<Self> {
+    ) -> PrecompilesTester<'_, Self> {
         PrecompilesTester::new(self, from, to, data.into())
     }
 }

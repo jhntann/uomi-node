@@ -97,5 +97,5 @@ pub fn get_arg_body(cid_str: &str) -> String {
 }
 
 pub fn get_cid_str(cid: &Cid) -> Result<&str, sp_runtime::offchain::http::Error> {
-    return sp_std::str::from_utf8(&cid).map_err(|_| sp_runtime::offchain::http::Error::Unknown);
+    sp_std::str::from_utf8(cid).map_err(|_| sp_runtime::offchain::http::Error::Unknown)
 }

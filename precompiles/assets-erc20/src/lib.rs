@@ -35,6 +35,10 @@
 // along with AssetsERC20.  If not, see <http://www.gnu.org/licenses/>.
 
 #![cfg_attr(not(feature = "std"), no_std)]
+// Allow to keep the file compiling cleanly under `-D warnings` while we
+// progressively trim unused imports and doc-spacing issues.
+#![allow(unused_imports)]
+#![allow(clippy::empty_line_after_doc_comments)]
 
 use fp_evm::{ExitError, PrecompileHandle};
 use frame_support::{
@@ -95,14 +99,12 @@ pub trait AddressToAssetId<AssetId> {
 /// exists in pallet-assets
 /// We cannot do this right now, so instead we check whether the total supply is zero. If so, we
 /// do not route to the precompiles
-
 /// This means that every address that starts with 0xFFFFFFFF will go through an additional db read,
 /// but the probability for this to happen is 2^-32 for random addresses
 #[derive(Clone, DefaultNoBound)]
 pub struct Erc20AssetsPrecompileSet<Runtime, Instance: 'static = ()>(
     PhantomData<(Runtime, Instance)>,
 );
-
 impl<Runtime, Instance> Erc20AssetsPrecompileSet<Runtime, Instance> {
     pub fn new() -> Self {
         Self(PhantomData)
@@ -206,7 +208,6 @@ where
             let owner: Runtime::AccountId = Runtime::AddressMapping::into_account_id(owner);
             let spender: Runtime::AccountId = Runtime::AddressMapping::into_account_id(spender);
 
-            // Fetch info.
             pallet_assets::Pallet::<Runtime, Instance>::allowance(asset_id, &owner, &spender).into()
         };
 
@@ -342,7 +343,7 @@ where
         {
             let caller: Runtime::AccountId =
                 Runtime::AddressMapping::into_account_id(handle.context().caller);
-            let from: Runtime::AccountId = Runtime::AddressMapping::into_account_id(from.clone());
+            let from: Runtime::AccountId = Runtime::AddressMapping::into_account_id(from);
             let to: Runtime::AccountId = Runtime::AddressMapping::into_account_id(to);
 
             // If caller is "from", it can spend as much as it wants from its own balance.

@@ -1,4 +1,5 @@
 #![cfg_attr(not(feature = "std"), no_std)]
+#![allow(clippy::let_unit_value)]
 #![allow(deprecated)]
 #![allow(clippy::type_complexity)]
 #![allow(clippy::useless_conversion)]
@@ -330,7 +331,7 @@ pub mod pallet {
             CidsStatus::<T>::insert(&cid, (U256::zero(), U256::zero()));
             log::info!(
                 "IPFS: CID status after insert: {:?}",
-                CidsStatus::<T>::get(cid)
+                CidsStatus::<T>::get(cid.clone())
             );
 
             Self::deposit_event(Event::IpfsOperationSuccess {
@@ -364,12 +365,10 @@ pub mod pallet {
             let current_block = frame_system::Pallet::<T>::block_number();
             let new_expires_at = current_block.saturating_add(duration);
 
-            if CidsStatus::<T>::contains_key(&cid) {
+            if CidsStatus::<T>::contains_key(cid.clone()) {
                 CidsStatus::<T>::mutate(&cid, |(expires_at, _usable_from)| {
                     if new_expires_at.into() > *expires_at {
                         *expires_at = new_expires_at.into();
-                    } else {
-                        *expires_at = *expires_at;
                     }
                 });
             } else {
@@ -454,7 +453,7 @@ pub mod pallet {
                 //if expired, remove from cidstatus
                 CidsStatus::<T>::remove(cid);
                 //in nodesPins remove prefix of the cid
-                NodesPins::<T>::clear_prefix(cid, None);
+                let _ = NodesPins::<T>::clear_prefix(cid, u32::MAX, None);
             }
 
             InherentDidUpdate::<T>::set(true);
@@ -629,7 +628,7 @@ pub mod pallet {
                 return Ok(());
             }
 
-            if !NodesPins::<T>::contains_key(&cid, public) {
+            if !NodesPins::<T>::contains_key(cid.clone(), public) {
                 if cfg!(test) {
                     to_save.push((cid, config));
                     return Ok(());
@@ -654,9 +653,9 @@ pub mod pallet {
             to_remove: &mut Vec<(Cid, (ExpirationBlockNumber, UsableFromBlockNumber))>,
         ) -> Result<(), DispatchError> {
             //check nodespins, check if someone has pinned some file that are not in cidstatus, if so unpin it
-            if NodesPins::<T>::contains_key(&cid.clone(), public) {
+            if NodesPins::<T>::contains_key(cid.clone(), public) {
                 //cid is present in cidstatus
-                if !CidsStatus::<T>::contains_key(&cid) {
+                if !CidsStatus::<T>::contains_key(cid.clone()) {
                     match Self::offchain_unpin_file(cid.clone()) {
                         Ok(_) => {
                             log::info!("IPFS: File unpinned: {:?}", cid);
@@ -753,14 +752,14 @@ pub mod pallet {
         pub fn get_cid_status(
             cid: &Cid,
         ) -> Result<(ExpirationBlockNumber, UsableFromBlockNumber), DispatchError> {
-            let status = CidsStatus::<T>::get(cid);
+            let status = CidsStatus::<T>::get(cid.clone());
             Ok(status)
         }
 
         pub fn get_file(cid: &Cid) -> Result<Vec<u8>, sp_runtime::offchain::http::Error> {
             log::info!("IPFS: Getting file from CID: {:?}", cid);
             // Check if it's expired (or if it never expires) and check if it's usable
-            let (expires_at, usable_from) = CidsStatus::<T>::get(cid);
+            let (expires_at, usable_from) = CidsStatus::<T>::get(cid.clone());
             let current_block = frame_system::Pallet::<T>::block_number();
 
             //if expire_at is 0, it means it's a persistent pin, otherwise it's a temporary pin to check if it's expired
@@ -786,7 +785,7 @@ pub mod pallet {
                 cid: cid.to_vec(),
             });
 
-            Ok(output?)
+            output
         }
 
         pub fn is_majority_pinned(cid: &Cid) -> bool {
